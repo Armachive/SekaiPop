@@ -271,6 +271,17 @@ SettingsPage {
         }
 
         SettingChoice {
+            label: "Apps order"
+            sublabel: "Most used puts the apps you open most lately first, then the rest A to Z. It counts apps opened from the Apps screen, and moves when the screen next opens"
+            current: SettingsService.get("launcher.order")
+            options: [
+                { id: "az", label: "A to Z", icon: "sort_by_alpha" },
+                { id: "used", label: "Most used", icon: "history" }
+            ]
+            onPicked: id => SettingsService.set("launcher.order", id)
+        }
+
+        SettingChoice {
             label: "Lockscreen style"
             sublabel: "Gacha: the Project Sekai screen. Calendar: a printed poster with framed pictures from your wallpaper"
             current: SettingsService.get("lock.style")
