@@ -45,12 +45,24 @@ Item {
     property real renderScale: 1
 
     // While open, PowerBusyService looks for a package manager or a download that
-    // a reboot / shutdown would interrupt (see below: a badge and a note).    // -1 = nothing selected yet; first Down lands on row 0, first Up on the last.
+    // a reboot / shutdown would interrupt (see below: a badge, and the label turns
+    // into a warning).
+    // -1 = nothing selected yet; first Down lands on row 0, first Up on the last.
     property int currentIndex: -1
+
+    // The pill under the mouse (-1 = none), and whether the last selection came from
+    // the keyboard: the label follows the mouse, and the keyboard only while it is
+    // the one moving. (currentIndex alone would leave a label behind once the mouse
+    // has left the rail.)
+    property int hoveredIndex: -1
+    property bool keyNav: false
+    readonly property int labelIndex: hoveredIndex >= 0 ? hoveredIndex
+                                      : (keyNav ? currentIndex : -1)
 
     function move(delta) {
         const n = rows.length
         if (n === 0) return
+            keyNav = true
             currentIndex = currentIndex < 0
             ? (delta > 0 ? 0 : n - 1)
             : (currentIndex + delta + n) % n
@@ -72,7 +84,11 @@ Item {
 
     onOpenChanged: {
         PowerBusyService.watching = root.open
-        if (root.open) root.currentIndex = -1
+        if (root.open) {
+            root.currentIndex = -1
+            root.hoveredIndex = -1
+            root.keyNav = false
+        }
     }
     Component.onDestruction: PowerBusyService.watching = false
 
@@ -98,6 +114,19 @@ Item {
         "hotel",
         "settings_b_roll",
         "monitor_heart"
+    ]
+
+    // What each row does, in the same order: the label shown beside a hovered or
+    // keyboard-selected pill (an icon alone doesn't tell hibernate from sleep).
+    readonly property var labels: [
+        "Shut down",
+        "Reboot",
+        "Log out",
+        "Lock",
+        "Sleep",
+        "Hibernate",
+        "Reboot to firmware",
+        "System monitor"
     ]
 
     // One pill's footprint and the gap between row centers, both design
@@ -221,7 +250,15 @@ Item {
                     hoverElevates: true
                     anchorRight: true
                     keyFocused: root.currentIndex === item.index
-                    onHoveredChanged: if (item.hovered) root.currentIndex = item.index
+                    onHoveredChanged: {
+                        if (item.hovered) {
+                            root.currentIndex = item.index
+                            root.hoveredIndex = item.index
+                            root.keyNav = false
+                        } else if (root.hoveredIndex === item.index) {
+                            root.hoveredIndex = -1
+                        }
+                    }
                     x: 0
                     y: index * root.rowSpacing
 
@@ -289,8 +326,9 @@ Item {
                     }
 
                     // Power off (0) and Reboot (1): warn while something is still
-                    // installing or downloading.
-                    readonly property bool warned: item.index <= 1 && PowerBusyService.busy
+                    // installing or downloading (the badge here, the reason in the
+                    // label below).
+                    readonly property bool warned: root.isWarned(item.index)
 
                     Rectangle {
                         visible: item.warned
@@ -315,35 +353,73 @@ Item {
                         }
                     }
 
-                    // The note: on the phone's side of the pill, while hovered.
-                    Rectangle {
-                        visible: item.warned && (item.hovered || item.keyFocused)
-                        z: 6
-                        anchors.right: parent.left
-                        anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        radius: 10
-                        color: "#ff9f1c"
-                        border.width: 2
-                        border.color: mt.colBorder
-                        width: noteText.implicitWidth + 20
-                        height: noteText.implicitHeight + 14
-
-                        Text {
-                            id: noteText
-                            anchors.centerIn: parent
-                            text: (item.index === 0 ? "Shut down" : "Reboot") + " will cut it off: "
-                                  + PowerBusyService.note
-                            color: mt.colBorder
-                            font.family: mt.fontFamily
-                            font.pixelSize: 12
-                            font.weight: Font.ExtraBold
-                            font.styleName: mt.fontStyleBold
-                        }
-                    }
                     onClicked: root.trigger(item.index)
                 } // QuickToggle delegate
             } // Repeater
         } // content
     } // canvas
+
+    function isWarned(i) {
+        return i >= 0 && i <= 1 && PowerBusyService.busy
+    }
+
+    // The label: what the hovered (or keyboard-selected) pill does, or, on Power
+    // off / Reboot while something is installing, what it would cut off.
+    //
+    // On the far side of the pill from the phone. It used to be drawn on the phone's
+    // side, inside `canvas`, whose layer clips to its box, so only a sliver of it
+    // showed, over the phone's edge. Out here it is outside `canvas` too, so it gets
+    // its own supersampled layer for the tilt, same reason as canvas's.
+    // QuickPanel.qml reserves no extra room for it: the window is already as wide as
+    // the turn into the Settings needs (padX), which reaches well past the rail.
+    Rectangle {
+        id: label
+        readonly property int idx: root.labelIndex
+        readonly property bool warned: root.isWarned(idx)
+        // Kept while fading out, so the text doesn't blank before the plate does.
+        property int shownIdx: 0
+        onIdxChanged: if (idx >= 0) shownIdx = idx
+
+        // The pill's resting box is QuickToggle's round implicitHeight (75), its
+        // right edge pinned at pillFixedRight.
+        x: root.pillFixedRight + 14
+        y: shownIdx * root.rowSpacing + 75 / 2 - height / 2
+        z: 10
+        width: labelText.width + 28
+        height: labelText.implicitHeight + 16
+        radius: 12
+        color: warned ? "#ff9f1c" : mt.chipFill
+        border.width: 3
+        border.color: warned ? mt.colBorder : mt.pLine
+        antialiasing: true
+
+        opacity: root.open && idx >= 0 ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation { duration: 90 }
+        }
+
+        layer.enabled: visible
+        layer.smooth: true
+        layer.samples: 4
+        layer.mipmap: true
+        layer.textureSize: Qt.size(Math.ceil(width * root.renderScale * 2),
+                                    Math.ceil(height * root.renderScale * 2))
+
+        Text {
+            id: labelText
+            anchors.centerIn: parent
+            // The busy note can run long; wrap it rather than run off the window,
+            // which only reaches about 390 design units past the rail.
+            width: Math.min(implicitWidth, 300)
+            wrapMode: Text.WordWrap
+            text: label.warned
+                  ? root.labels[label.shownIdx] + " will cut it off: " + PowerBusyService.note
+                  : root.labels[label.shownIdx]
+            color: label.warned ? mt.colBorder : mt.chipInk
+            font.family: mt.fontFamily
+            font.pixelSize: 14
+            font.weight: Font.Black
+        }
+    }
 }
