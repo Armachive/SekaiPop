@@ -57,7 +57,7 @@ your own shell binds too. On `hyprland.conf` instead of this Lua config, it need
 Cheatsheet groups: Hyprland's Lua config reports every bind as `__lua`, so the shell's cheatsheet
 (SUPER+/) groups binds by their description, written `Group: sentence` (Shell, Utilities, Windows,
 Workspaces, Session, Screen, Media, Apps). `Group (more): sentence` keeps a bind out of the short list
-(alternate keys, test keys); the cheatsheet's "+N more" chip shows them. Use the same form for your own
+(alternate keys, extras); the cheatsheet's "+N more" chip shows them. Use the same form for your own
 binds in `custom/keybinds.lua`.
 
 ## Behaviour changes to know about

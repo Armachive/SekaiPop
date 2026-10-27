@@ -64,6 +64,13 @@ eq(row(lr, "quickpanel").combos, [{ mods: SUPER, key: "N" }], "Lua binds are mat
 eq(row(lr, "welcome").combos, [{ mods: SUPER | SHIFT | ALT, key: "Slash" }], "a (more) description matches too")
 eq(row(lr, "snip").cmd, "", "a Lua bind has no command to copy")
 
+// Power options ship on SUPER + Escape; Keep Awake ships without a key (it was on SUPER + A,
+// on top of Toggle apps, so opening Apps flipped it too).
+const pr = KB.rows([lua("Escape", SUPER, "Shell: Toggle power options"), lua("A", SUPER, "Shell: Toggle apps")], {})
+eq(row(pr, "power").combos, [{ mods: SUPER, key: "Escape" }], "power options is an action")
+ok(row(pr, "keepawake").none && row(pr, "keepawake").bare, "Keep Awake ships without a key")
+eq(KB.conflict([], { mods: SUPER, key: "A" }, "keepawake", pr).id, "launcherphone", "giving Keep Awake SUPER + A asks first")
+
 // ----- conflicts -----
 eq(KB.conflict(confBinds, { mods: SUPER, key: "v" }, "eq", rs),
     { kind: "action", id: "clipboard", name: "Clipboard history", combo: { mods: SUPER, key: "V" } },

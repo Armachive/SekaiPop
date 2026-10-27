@@ -4,6 +4,16 @@ The detailed notes written while SekaiPop was built: what each change touched, w
 and what was only read through, and how to check it. The short release notes are in
 `sekaipop/CHANGELOG.md`.
 
+## Unreleased — SUPER + A no longer toggles Keep Awake; no test-notification keys (issue #92)
+
+**Not run on a live Hyprland session** (the desktop it was written on doesn't run SekaiPop's Hyprland config). Checked: `luac -p hypr/hyprland/keybinds.lua`; `tests/keys-test/keys_unit.js` (two new cases), `keys_script_test.js` and `tests/keybinds-test/*` pass.
+
+- Why: af5b11a added `shell("SUPER + A", "quickpanel keepAwake", ...)` beside `shell("SUPER + A", "launcherphone toggle", ...)`. Hyprland runs both binds on one key, so every SUPER + A opened Apps and flipped Keep Awake. Issue #92 also asks for fewer shipped binds that the keybinds panel can't change; the notification test keys were the clear leftovers.
+- `hypr/hyprland/keybinds.lua`: the Keep Awake bind is gone, and it is now one of the commented, keyless examples at the end (SUPER + ALT + A in the example, which nothing else uses). The three `notify-test.sh` binds are gone, replaced by a comment saying how to run the script; `hyprScripts` went with them, since nothing else used it. The script stays.
+- `KeyBinds.js`: two actions, `power` (Toggle power options, `phone go power`, on SUPER + Escape) and `keepawake` (Toggle Keep Awake, `quickpanel keepAwake`, `bare`), so both can be bound or moved from the panel.
+- `hypr/README.md`: "(more)" no longer mentions test keys.
+- Left for the maintainer (the rest of #92 is a matter of taste): the screenshot variants (CTRL + SUPER + SHIFT + S, Print, CTRL + Print), the BracketLeft / BracketRight focus binds, binds with three or more modifiers, the virtual-machine submap, and the ALT + F4 reminder.
+- **To check:** on a fresh install, SUPER + A opens and closes Apps and leaves the Quick Panel's Keep Awake tile alone; SUPER + ALT + F11 / F12 / = do nothing; Settings > Hyprland > Keybinds lists Toggle power options on SUPER + Escape, and moving it works; Toggle Keep Awake shows no key, and giving it SUPER + A asks first because Toggle apps is there.
 ## Unreleased — Auto-hide for the bar, and a key to show or hide it (issue #61)
 
 **Run on the live shell** by the owner of the desktop it runs on, who reported it working (Hyprland, NVIDIA). Checked: `qmllint` reports no errors on the changed files; `tests/keys-test/keys_unit.js` and `keys_script_test.js` pass with the new action; the other JS tests give the same results as `main` (81 pass, the same 9 fail). Which of the cases below were each tried by eye was not itemised.
