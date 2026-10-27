@@ -93,6 +93,9 @@ Singleton {
         "files.chooser": "auto",
         "launcher.webSuggestions": true,
         "launcher.clipboard": true,
+        // The Apps screen's order with nothing typed: "az" (A to Z) | "used" (most opened
+        // lately first, then the rest A to Z; also breaks ties in search). AppSource.qml.
+        "launcher.order": "az",
         // The Apps screen's old on / off switch for its wallpaper; read only while phone.wallpaper is "".
         "launcher.lcdWallpaper": true,
         // What the phone's screens show behind them: "off", "desktop" or "picture";

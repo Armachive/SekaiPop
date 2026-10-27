@@ -1,5 +1,8 @@
 import Quickshell
+import Quickshell.Io
 import QtQuick
+import qs.modules.common
+import "../modules/common/functions/AppUsage.js" as AU
 
 // The system side of the App Launcher — every installed .desktop
 // application, via Quickshell's own DesktopEntries index (no shelling
@@ -19,6 +22,10 @@ import QtQuick
 //     LauncherFace.qml) instead of tearing down and rebuilding the whole grid
 //     per letter.
 //   - `iconFor()` remembers every icon path it has looked up.
+//
+// Launches are counted (AppUsage.js) for the "Most used" order, Settings > General >
+// Launcher & lock > Apps order (launcher.order: "az" | "used"). Only launches from the
+// Apps screen count: the dock's own clicks run the entry directly (Dock.qml).
 Scope {
     id: root
 
@@ -30,7 +37,8 @@ Scope {
     // the *fields* of this one object notifies nobody.
     readonly property var _cache: ({
         rankKey: "", rankVal: [],
-        iconSrc: null, icons: ({})
+        iconSrc: null, icons: ({}),
+        usage: ({}), usageDirty: false
     })
 
     // Every non-hidden, non-NoDisplay application on the system
@@ -68,6 +76,10 @@ Scope {
         const sig = root.signatureOf(DesktopEntries.applications.values)
         if (sig !== root._cache.sig)
             root._rev++
+        if (root._cache.usageDirty) {
+            root._cache.usageDirty = false
+            root._usageRev++
+        }
     }
 
     // The model says its apps changed: make sure the list followed. Deferred a beat so
@@ -79,6 +91,44 @@ Scope {
         function onValuesChanged() {
             Qt.callLater(root.sync)
         }
+    }
+
+    // ===== most used =====
+    readonly property bool byUse: SettingsService.get("launcher.order") === "used"
+
+    // The counts are read from `_cache.usage` when this changes, not on every launch:
+    // a launch only marks them dirty, and `sync()` (the Apps screen opening) moves the
+    // order on. Re-sorting at launch would shuffle the tiles while the phone slides away.
+    property int _usageRev: 0
+
+    // What the grid shows with nothing typed: `entries` A to Z, or most used first.
+    // The same objects either way. A score's decay is the same for every app, so the
+    // order doesn't drift with time on its own and needs no timer.
+    readonly property var ordered: {
+        root._usageRev
+        return root.byUse ? AU.order(root.entries, root._cache.usage, Date.now()) : root.entries
+    }
+
+    readonly property string usageScript: Directories.script("state/app-usage-state.sh")
+
+    Process {
+        running: true
+        command: ["sh", root.usageScript, "load"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root._cache.usage = AU.parse(text)
+                root._usageRev++
+            }
+        }
+    }
+
+    function recordLaunch(app) {
+        const id = app.id || ""
+        if (id === "")
+            return
+        root._cache.usage = AU.record(root._cache.usage, id, Date.now())
+        root._cache.usageDirty = true
+        Quickshell.execDetached(["sh", root.usageScript, "save", JSON.stringify(root._cache.usage)])
     }
 
     // The same apps as plain DesktopEntry objects (what this file used to
@@ -135,19 +185,26 @@ Scope {
             return []
         const list = root.entries
         const c = root._cache
-        if (c.rankSrc === list && c.rankKey === needle)
+        // With "Most used" on, ties (two apps whose names both start with what you typed)
+        // go to the one you open more.
+        const byUse = root.byUse
+        const rev = root._usageRev
+        if (c.rankSrc === list && c.rankKey === needle && c.rankByUse === byUse && c.rankRev === rev)
             return c.rankVal
+        const now = Date.now()
         const scored = []
         for (let i = 0; i < list.length; i++) {
             const s = root.scoreEntry(list[i], needle)
             if (s > 0)
-                scored.push({ e: list[i], s: s })
+                scored.push({ e: list[i], s: s, u: byUse ? AU.scoreAt(c.usage[list[i].key], now) : 0 })
         }
-        // Ties keep the name order (idx), the same order the apps are sorted in.
-        scored.sort((a, b) => b.s - a.s || a.e.idx - b.e.idx)
+        // Ties go to the more used app (with "Most used" on), then keep the name order (idx).
+        scored.sort((a, b) => b.s - a.s || b.u - a.u || a.e.idx - b.e.idx)
         const out = scored.map(x => x.e)
         c.rankSrc = list
         c.rankKey = needle
+        c.rankByUse = byUse
+        c.rankRev = rev
         c.rankVal = out
         return out
     }
@@ -215,7 +272,9 @@ Scope {
     // (terminal wrapper, working directory, field codes) itself — see
     // DesktopEntry.execute() — so there's nothing to shell out to here.
     function launch(app) {
-        if (app)
-            app.execute()
+        if (!app)
+            return
+        app.execute()
+        root.recordLaunch(app)
     }
 }

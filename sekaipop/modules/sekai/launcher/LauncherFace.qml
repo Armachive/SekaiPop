@@ -11,7 +11,8 @@ import qs.modules.common.widgets
 //
 //   - a clock / date strip at the top (the notch is in the middle of it)
 //   - a search pill: type anything and the Apps drawer takes over
-//   - APPS: every installed app, A to Z, or the ranked matches for what you typed
+//   - APPS: every installed app, A to Z or most used first (launcher.order), or the
+//     ranked matches for what you typed
 //
 // There is no Home page, no Back chip and no Settings / Wallpapers tile: Settings is
 // the gear on the Quick Panel and the Wallpapers have their own key.
@@ -44,7 +45,7 @@ Item {
     height: 1214
 
     // ===== what it is given =====
-    // AppSource.qml: `entries`, `rankEntries(query)` and `iconFor(name)`.
+    // AppSource.qml: `ordered`, `rankEntries(query)` and `iconFor(name)`.
     property var source: null
     property string clockText: "00:00AM"
     property string dateText: "Sun, 20  Sep"
@@ -168,12 +169,12 @@ Item {
     }
 
     // What the grid shows: AppSource's own entry objects (built once, so the same app
-    // is always the same object), every app A to Z or the ranked matches. Nothing is
+    // is always the same object), every app in the chosen order or the ranked matches. Nothing is
     // copied or rebuilt here per letter typed.
     readonly property var drawerEntries: {
         if (!face.source)
             return []
-        return face.searching ? face.source.rankEntries(face.query) : face.source.entries
+        return face.searching ? face.source.rankEntries(face.query) : face.source.ordered
     }
 
     // The grid's model. A ScriptModel compares the new list with the old one by `key`

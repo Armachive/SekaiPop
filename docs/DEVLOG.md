@@ -4,6 +4,17 @@ The detailed notes written while SekaiPop was built: what each change touched, w
 and what was only read through, and how to check it. The short release notes are in
 `sekaipop/CHANGELOG.md`.
 
+## Unreleased — The Apps screen in most-used order (issue #94)
+
+**Not run on a live Quickshell before this entry** (the shell running on the desktop it was written on is an install, not this checkout). Checked: `qmllint` on the four changed QML files reports nothing; `tests/app-usage-test/app_usage_test.js` (new) passes; the other JS tests give the same results as `main` (79 pass, the same 11 fail); `scripts/state/app-usage-state.sh` saved, loaded and refused a bad mode under a scratch `XDG_STATE_HOME`.
+
+- What it is: `launcher.order` (`az` | `used`, default `az`), Settings > General > Launcher & lock > Apps order. With `used`, the grid with nothing typed is most used first, then the rest A to Z, and the usage breaks ties in search.
+- `AppUsage.js` (new): one decaying score per desktop id (+1 per launch, halves every 14 days), `order()`, `record()`, `prune()` (forgotten below 0.03, at most 200 apps), `parse()` (anything unreadable is an empty store). Every score decays alike, so the order is the same whenever it is asked and needs no timer.
+- `AppSource.qml`: `launch()` counts (`recordLaunch`) and saves the store; `ordered` is what the grid shows; the counts are read through `_usageRev`, bumped by `sync()` (the Apps screen opening) after a launch and once the file is loaded, so the tiles don't move while the phone slides away. `rankEntries()` breaks ties by the score with `used` on, and its cache keys on the setting and `_usageRev`.
+- `scripts/state/app-usage-state.sh` (new): `~/.local/state/sekaipop/app-usage.json`, written through a temp file.
+- `LauncherFace.qml`: the grid shows `source.ordered`. `SettingsService.qml`: the default. `SettingsPageGeneral.qml`: the choice.
+- Not done: counting the dock's launches (the dock runs its entries itself) and a separate "Frequent" row (a new section on the Apps screen; reordering the grid is what #94 asked for).
+- **To check:** with Most used on, open an app from Apps a few times, open Apps again: it is first, the unused apps follow A to Z; the tiles don't move while the phone goes away after a launch; the order survives a shell restart; typing a letter that two apps start with puts the more used one first; A to Z puts the grid back; deleting `app-usage.json` and restarting gives A to Z order under Most used.
 ## Unreleased — SUPER + A no longer toggles Keep Awake; no test-notification keys (issue #92)
 
 **Not run on a live Hyprland session** (the desktop it was written on doesn't run SekaiPop's Hyprland config). Checked: `luac -p hypr/hyprland/keybinds.lua`; `tests/keys-test/keys_unit.js` (two new cases), `keys_script_test.js` and `tests/keybinds-test/*` pass.
