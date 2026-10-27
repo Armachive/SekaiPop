@@ -12,7 +12,6 @@
 -- them by these descriptions, so keep the sentences as they are.
 
 local ipcCall = QS_IPC
-local hyprScripts = "$HOME/.config/hypr/hyprland/scripts"
 
 -- Shorthand for a shell bind (more = true: listed under "+N more" only)
 local function shell(keys, call, description, more)
@@ -37,8 +36,6 @@ shell("SUPER + SHIFT + E", "desktopedit toggle", "Edit desktop")
 shell("SUPER + SHIFT + F", "focus toggle", "Toggle focus mode")
 shell("SUPER + SHIFT + ALT + Slash", "welcome show", "Welcome tour", true)
 shell("SUPER + Escape", "phone go power", "Toggle power options")
-shell("SUPER + A", "quickpanel keepAwake", "Toggle keepAwake")
-
 
 -- Look
 shell("CTRL + SUPER + T", "wallpaperpicker toggle", "Change wallpaper")
@@ -97,13 +94,8 @@ hl.bind("CTRL + Print", hl.dsp.exec_cmd(
     "mkdir -p $(xdg-user-dir PICTURES)/Screenshots && " ..
     grimhyprctl .. " - | tee $(xdg-user-dir PICTURES)/Screenshots/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png | wl-copy"
 ), { locked = true, description = "Utilities: Screenshot >> clipboard & file" })
---# Notification test keys (the shell's own notification server: popups, phone, actions)
-hl.bind("SUPER + ALT + F11", hl.dsp.exec_cmd(hyprScripts .. "/notify-test.sh image"),
-    { description = "Utilities (more): Test notification (image)" })
-hl.bind("SUPER + ALT + F12", hl.dsp.exec_cmd(hyprScripts .. "/notify-test.sh actions"),
-    { description = "Utilities (more): Test notification (actions)" })
-hl.bind("SUPER + ALT + Equal", hl.dsp.exec_cmd(hyprScripts .. "/notify-test.sh urgent"),
-    { description = "Utilities (more): Test notification (urgent)" })
+-- Test notifications (popups, the phone, actions) have no key: run
+-- ~/.config/hypr/hyprland/scripts/notify-test.sh image | actions | urgent
 
 --##! Screen
 --# Zoom
@@ -326,3 +318,4 @@ hl.bind("CTRL + SHIFT + Escape", hl.dsp.exec_cmd(taskManager), { description = "
 --   hl.bind("SUPER + ALT + D", hl.dsp.exec_cmd(QS_IPC .. "discord mute"), { description = "Shell: Discord mute" })
 --   hl.bind("SUPER + ALT + P", hl.dsp.exec_cmd(QS_IPC .. "presets toggle"), { description = "Shell: Desktop presets" })
 --   hl.bind("SUPER + B", hl.dsp.exec_cmd(QS_IPC .. "bar toggle"), { description = "Shell: Toggle bar" })
+--   hl.bind("SUPER + ALT + A", hl.dsp.exec_cmd(QS_IPC .. "quickpanel keepAwake"), { description = "Shell: Toggle Keep Awake" })

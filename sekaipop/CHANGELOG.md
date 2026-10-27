@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Keybinds: SUPER + A only opens Apps. It was also bound to Keep Awake, so opening Apps with it flipped Keep Awake every time. Keep Awake now ships without a key: give it one in Settings > Hyprland > Keybinds (Toggle Keep Awake), where Toggle power options (SUPER + Escape) is listed now too. The three test-notification keys (SUPER + ALT + F11 / F12 / =) are gone; `~/.config/hypr/hyprland/scripts/notify-test.sh image | actions | urgent` still sends them. Update now doesn't touch the Hyprland config, so on an existing install run install.sh again, or delete those lines from `~/.config/hypr/hyprland/keybinds.lua` (issue #92).
 - Hyprland: window blur works again. The shipped `rules.lua` turned blur off for every window (`no_blur` on `class = ".*"`), so Settings > Hyprland > Blur and `decoration.blur.enabled` did nothing for transparent apps. The rule is gone; the shell's own surfaces are layers and stay unblurred. Update now doesn't touch the Hyprland config, so on an existing install delete that line from `~/.config/hypr/hyprland/rules.lua` (or run install.sh again) and `hyprctl reload` (issue #69).
 - Quick Panel: a phone that is only up for a notification no longer shows the banner's Change / Frame keys, the avatar's Frame key or their remove badges when the pointer passes over them on the way to the card. They come back once you click the phone and keep it.
 - Lockscreen: optional fingerprint unlock via PAM (`pam_fprintd.so`), gated under Settings > General > Launcher & lock > Fingerprint unlock (off by default).
