@@ -251,6 +251,10 @@ ShellRoot {
     // daemon above. Idle on a desktop with no battery. Settings > General > Time & alerts.
     BatteryAlertService {}
 
+    // The idle times (lock, screen off, sleep), written for hypridle. A singleton only
+    // exists once something reads it, and this one has to write its file at startup.
+    readonly property bool idleTimesReady: IdleService.ready
+
     // The Quick Panel is the front door of the ONE phone (see QuickPanel.qml's
     // header): Quick, the Apps screen and the Settings live in it, behind one
     // router, and `ipc call phone ...` drives all of it. The Wallpapers share the
