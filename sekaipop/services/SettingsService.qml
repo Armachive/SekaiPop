@@ -271,6 +271,12 @@ Singleton {
         "appearance.iconTheme": "",
         "appearance.cursorTheme": "",
         "appearance.cursorSize": 24,
+        // The font GTK / Qt / KDE apps use (AppFontService.qml), picked in Settings > Desktop >
+        // App fonts and put back at start. "" / 0: not picked here, the system's stays.
+        "appFonts.ui": "",
+        "appFonts.uiSize": 0,
+        "appFonts.mono": "",
+        "appFonts.monoSize": 0,
         // Shell hooks: executable path, empty means disabled.
         "hooks.wallpaper": "",
         "hooks.lockWallpaper": "",
