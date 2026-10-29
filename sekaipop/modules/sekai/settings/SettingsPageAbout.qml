@@ -235,6 +235,16 @@ SettingsPage {
             onActivated: UpdateService.update()
         }
 
+        Text {
+            width: page.fullWidth
+            wrapMode: Text.WordWrap
+            text: "The shell's own update. Your plugins have their own card just below, with the same check, commits and Update; the two settings here are theirs too."
+            color: mt.pInkSub
+            font.family: mt.fontFamily
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+        }
+
         SettingToggle {
             icon: "notifications_active"
             label: "Tell me about updates"
@@ -297,6 +307,33 @@ SettingsPage {
                 }
             }
         }
+    }
+
+    // The plugins' own update and getting new ones (docs/PLUGIN-INSTALL.md).
+    SettingsPluginsUpdate {
+        id: pluginsCard
+        settingsPage: page
+    }
+
+    SettingsGetPlugins {
+        id: getCard
+        settingsPage: page
+    }
+
+    // Desktop › Plugins' "Update in About" lands on the Plugins card.
+    function takeTarget() {
+        const t = PluginRepoService.aboutTarget
+        if (t === "" || !page.visible)
+            return
+        PluginRepoService.aboutTarget = ""
+        Qt.callLater(() => page.scrollToItem(t === "get" ? getCard : pluginsCard))
+    }
+
+    onVisibleChanged: if (visible) Qt.callLater(page.takeTarget)
+
+    Connections {
+        target: PluginRepoService
+        function onAboutTargetChanged() { page.takeTarget() }
     }
 
     SectionCard {

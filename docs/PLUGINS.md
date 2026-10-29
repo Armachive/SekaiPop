@@ -16,8 +16,13 @@ in the bar, every bar edge and style, its pill, and the popup under it. The plug
 
 ## Installing one
 
-The plugins there are to install are listed in the README ([Plugins](../README.md#plugins)), and
-on GitHub under the topic [`sekaipop-plugin`](https://github.com/topics/sekaipop-plugin).
+**From Settings:** About / Update > Get plugins lists the reviewed plugins (`plugins.json`, also in
+the README's [Plugins](../README.md#plugins)) and installs one with a key; From a URL installs any
+other plugin repository. About / Update > Plugins then updates them, goes back, pins and removes.
+That is [docs/PLUGIN-INSTALL.md](PLUGIN-INSTALL.md). On GitHub, plugins carry the topic
+[`sekaipop-plugin`](https://github.com/topics/sekaipop-plugin).
+
+**By hand**, as before (a plugin you are writing, say):
 
 1. Put its folder in `~/.config/sekaipop/plugins/` (or `$XDG_CONFIG_HOME/sekaipop/plugins/`),
    for example with `git clone`. The folder name is the plugin's id.
@@ -48,6 +53,8 @@ qs -c sekaipop ipc call plugins resetPosition <id>     # if it ends up off-scree
 qs -c sekaipop ipc call plugins settings <id>          # open Settings > Desktop > Plugins on it
 qs -c sekaipop ipc call plugins bar <id> on            # its bar entry: on, off or toggle
 qs -c sekaipop ipc call plugins popup <id>             # open / close its popup (for a keybind)
+qs -c sekaipop ipc call plugins install <owner/repo>   # and check, update, goback, pin, remove,
+                                                       # restore, open: docs/PLUGIN-INSTALL.md
 qs -c sekaipop ipc call desktopedit movewidget plugin:<id> DP-2
 ```
 

@@ -270,12 +270,15 @@ function withInstall(lock, key, info, now) {
 
 // An update (or a Go back) moves `commit`; the one it left is `previous`, which is what the
 // next Go back returns to. Going back to `previous` swaps the two, so Go back twice is a no-op.
-function withCommit(lock, key, commit, now) {
+// `from` is the commit the folder was really on (the script says), which the lockfile can miss
+// when someone moved the folder by hand; without it, the lockfile's own commit.
+function withCommit(lock, key, commit, now, from) {
     var l = copyLock(lock)
     var r = l.repos[key]
-    if (!r || r.commit === commit)
+    var was = typeof from === "string" && from !== "" ? from : (r ? r.commit : "")
+    if (!r || was === commit)
         return l
-    r.previous = r.commit
+    r.previous = was
     r.commit = commit
     r.updated = now
     return l
@@ -505,4 +508,46 @@ function ageText(then, now) {
         return Math.floor(s / 3600) + " h ago"
     var d = Math.floor(s / 86400)
     return d === 1 ? "yesterday" : d + " days ago"
+}
+
+// ===== what a plugin's row says =====
+
+// Where it is: "In the bar, and on the desktop on DP-1.", "On the desktop on DP-1 and DP-2.",
+// "In the bar.", "Not on the desktop or the bar yet." A plugin has a bar entry or a widget or both.
+function whereText(plugin, inBar, monitors) {
+    var hasBar = !!plugin.bar, hasWidget = !!(plugin.files && plugin.files.widget)
+    var desk = monitors && monitors.length > 0 ? "on the desktop on " + namesText(monitors) : ""
+    var parts = []
+    if (hasBar && inBar)
+        parts.push("in the bar")
+    if (hasWidget && desk !== "")
+        parts.push(desk)
+    if (parts.length === 0) {
+        var not = hasBar && hasWidget ? "the desktop or the bar" : hasBar ? "the bar" : "the desktop"
+        return "Not on " + not + " yet."
+    }
+    var t = parts.join(", and ")
+    return t.charAt(0).toUpperCase() + t.slice(1) + "."
+}
+
+// Where it came from, as its row's source line: { icon, text, code, note }.
+//   repo     From masshirodev/sekaipop-tailscale (reviewed) / Added from a URL: x (not reviewed)
+//   yours    Managed by you: ~/projects/sekaipop-tailscale/tailscale
+//   copied   Copied in by hand
+function sourceLine(kind, repo, reviewed, path, home) {
+    if (kind === "repo")
+        return reviewed
+            ? { icon: "verified", text: "From", code: repo, note: "" }
+            : { icon: "link", text: "Added from a URL:", code: repo, note: "not reviewed" }
+    if (kind === "yours") {
+        var h = String(home || "")
+        var p = h !== "" && String(path).indexOf(h + "/") === 0 ? "~" + String(path).slice(h.length) : String(path)
+        return { icon: "folder_special", text: "Managed by you:", code: p, note: "" }
+    }
+    return { icon: "content_copy", text: "Copied in by hand", code: "", note: "" }
+}
+
+// A commit's id as shown: its first 7 characters.
+function shortId(c) {
+    return String(c || "").slice(0, 7)
 }

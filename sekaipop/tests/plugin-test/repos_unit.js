@@ -93,6 +93,8 @@ let l3 = PR.withCommit(l2, "o/r", "aaa", NOW + 2)
 assert.deepStrictEqual([l3.repos["o/r"].commit, l3.repos["o/r"].previous], ["aaa", "bbb"], "going back swaps the two, so Go back twice undoes itself")
 assert.deepStrictEqual(PR.withCommit(l3, "o/r", "aaa", NOW + 3), l3, "the same commit changes nothing")
 assert.deepStrictEqual(PR.withCommit(l3, "x/y", "c", NOW), l3, "an unknown repository changes nothing")
+const moved = PR.withCommit(lock, "o/r", "aaa", NOW, "zzz")
+assert.deepStrictEqual([moved.repos["o/r"].commit, moved.repos["o/r"].previous], ["aaa", "zzz"], "where the folder really was wins over what the lockfile thought")
 assert.strictEqual(PR.withPin(lock, "o/r", true).repos["o/r"].pinned, true)
 assert.deepStrictEqual(PR.withPin(lock, "x/y", true), lock)
 assert.deepStrictEqual(PR.withPlugins(lock, "o/r", ["p", "q"]).repos["o/r"].plugins, ["p", "q"])
@@ -158,6 +160,21 @@ assert.deepStrictEqual(PR.needsChecked(undefined, {}), { list: [], missing: [] }
 assert.deepStrictEqual([NOW - 5000, NOW - 600000, NOW - 7200000, NOW - 86400000, NOW - 2 * 86400000].map(t => PR.ageText(t, NOW)),
     ["just now", "10 min ago", "2 h ago", "yesterday", "2 days ago"])
 
+// ---------- what a plugin's row says ----------
+const barW = { bar: { label: "T" }, files: { widget: true } }, barOnly = { bar: {}, files: { widget: false } }, wOnly = { bar: null, files: { widget: true } }
+assert.strictEqual(PR.whereText(barW, true, ["DP-1"]), "In the bar, and on the desktop on DP-1.", "the handoff's line")
+assert.strictEqual(PR.whereText(barW, false, ["DP-1", "DP-2"]), "On the desktop on DP-1 and DP-2.")
+assert.strictEqual(PR.whereText(barOnly, true, []), "In the bar.")
+assert.strictEqual(PR.whereText(barW, false, []), "Not on the desktop or the bar yet.")
+assert.strictEqual(PR.whereText(barOnly, false, ["DP-1"]), "Not on the bar yet.", "a bar-only plugin is never on the desktop")
+assert.strictEqual(PR.whereText(wOnly, true, []), "Not on the desktop yet.")
+assert.deepStrictEqual(PR.sourceLine("repo", "o/r", true), { icon: "verified", text: "From", code: "o/r", note: "" })
+assert.deepStrictEqual(PR.sourceLine("repo", "o/r", false), { icon: "link", text: "Added from a URL:", code: "o/r", note: "not reviewed" })
+assert.strictEqual(PR.sourceLine("yours", "", false, "/home/u/projects/t/tailscale", "/home/u").code, "~/projects/t/tailscale")
+assert.strictEqual(PR.sourceLine("yours", "", false, "/srv/t", "/home/u").code, "/srv/t")
+assert.strictEqual(PR.sourceLine("copied").text, "Copied in by hand")
+assert.strictEqual(PR.shortId("4f2c1ab9e8d7c6"), "4f2c1ab")
+
 // ---------- the reviewed list at the repository's root ----------
 const root = path.join(__dirname, "..", "..", "..")
 const list = PR.parseList(fs.readFileSync(path.join(root, "plugins.json"), "utf8"))
@@ -174,5 +191,25 @@ const readme = fs.readFileSync(path.join(root, "README.md"), "utf8")
 const block = (readme.match(/<!-- plugin-list -->([\s\S]*?)<!-- \/plugin-list -->/) || [, ""])[1]
 const named = [...block.matchAll(/https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\)/g)].map(m => m[1]).sort()
 assert.deepStrictEqual(named, list.entries.map(e => e.repo).sort(), "the README lists the same plugins as plugins.json")
+
+// ---------- the wiring ----------
+const read = f => fs.readFileSync(require("../lib/locate")(f), "utf8")
+const about = read("modules/sekai/settings/SettingsPageAbout.qml")
+assert.ok(/SettingsPluginsUpdate \{/.test(about) && /SettingsGetPlugins \{/.test(about), "About / Update carries Plugins and Get plugins")
+assert.ok(about.indexOf("SettingsPluginsUpdate {") > about.indexOf('title: "Update"') && about.indexOf("SettingsGetPlugins {") < about.indexOf('title: "What\'s new"'),
+    "...between the shell's own Update and What's new")
+const svc = read("services/PluginService.qml")
+const doc = fs.readFileSync(path.join(root, "docs", "PLUGIN-INSTALL.md"), "utf8")
+for (const cmd of ["install", "check", "update", "goback", "pin", "remove", "restore", "open"]) {
+    assert.ok(new RegExp("function " + cmd + "\\(").test(svc.slice(svc.indexOf("===== repositories"))), "ipc call plugins " + cmd + " exists")
+    assert.ok(doc.includes("ipc call plugins " + cmd), "docs/PLUGIN-INSTALL.md shows ipc call plugins " + cmd)
+}
+const sh = read("scripts/state/plugin-repos.sh")
+const repoSvc = read("services/PluginRepoService.qml")
+for (const m of [...repoSvc.matchAll(/root\.run\(\["([a-z-]+)"/g)].map(x => x[1]))
+    assert.ok(m === "--noop" || new RegExp("^    " + m + "\\)", "m").test(sh), "the service only runs commands plugin-repos.sh has: " + m)
+assert.ok(/GIT_TERMINAL_PROMPT=0/.test(sh), "the script never asks for a password")
+const row = read("modules/sekai/settings/PluginRow.qml")
+assert.ok(/Update in About/.test(row) && /onAboutRequested: card.goAbout\(\)/.test(read("modules/sekai/settings/SettingsPluginsCard.qml")), "Desktop › Plugins' rows lead to About")
 
 console.log("repos_unit: all checks passed")

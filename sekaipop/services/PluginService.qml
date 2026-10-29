@@ -38,6 +38,13 @@ import "../modules/common/functions/PluginManifest.js" as PM
 //   qs -c sekaipop ipc call plugins bar <id> on|off|toggle   its entry on the bar
 //   qs -c sekaipop ipc call plugins popup <id>         open / close its popup (focused monitor)
 //
+// Getting and updating plugin repositories is PluginRepoService.qml; its commands are here too:
+//   qs -c sekaipop ipc call plugins install <owner/repo | git URL>
+//   qs -c sekaipop ipc call plugins check | update [<repo>] | goback <repo> | pin <repo> on|off
+//   qs -c sekaipop ipc call plugins remove <repo> [keep|delete]   (its saved settings)
+//   qs -c sekaipop ipc call plugins restore            every repository of the lockfile, back
+//   qs -c sekaipop ipc call plugins open [get]         Settings > About / Update on Plugins (or Get plugins)
+//
 // A plugin can also put an entry in the bar (Bar.qml, and a Popup.qml under it), when its
 // manifest has `bar`. The bar takes it from `barModules` like a built-in module
 // (BarLayoutService.modules): placed in Settings > Bar and Edit Desktop's BAR tab, switched
@@ -334,6 +341,44 @@ Singleton {
                 return id + " is not on the bar (ipc call plugins bar " + st.pluginId + " on)"
             root.popupWanted(st.widgetId)
             return "toggling " + id + "'s popup"
+        }
+
+        // ===== repositories (PluginRepoService.qml) =====
+        function install(repo: string): string {
+            return PluginRepoService.install(repo, false)
+        }
+
+        function check(): string {
+            PluginRepoService.check(true)
+            return "checking " + Object.keys(PluginRepoService.lock.repos).length + " repositories"
+        }
+
+        // "" updates every repository that has an update (after a check).
+        function update(repo: string): string {
+            if (repo !== "")
+                return PluginRepoService.update(repo)
+            PluginRepoService.updateAll()
+            return "updating " + PluginRepoService.updates.length
+        }
+
+        function goback(repo: string): string {
+            return PluginRepoService.goBack(repo)
+        }
+
+        function pin(repo: string, value: string): string {
+            return PluginRepoService.pin(repo, value === "on" || value === "true" || value === "1")
+        }
+
+        function remove(repo: string, settings: string): string {
+            return PluginRepoService.remove(repo, settings === "delete")
+        }
+
+        function restore(): string {
+            return PluginRepoService.restore()
+        }
+
+        function open(where: string): void {
+            PluginRepoService.openAbout(where)
         }
 
         function resetPosition(id: string): void {

@@ -98,4 +98,8 @@ out=$($S fetch-list)
 expect "fetch-list: a failure keeps the last copy" "$(cat "$t/cache/sekaipop/plugins-list.json")" '"a/b"'
 expect "fetch-list: and says when it is from" "$out" "at="
 
+expect "list: when, then the cached list" "$($S list)" "$(printf 'at=')"
+expect "list: the list itself" "$($S list)" '"a/b"'
+$S seen "a/b@123"; expect "seen: stored and read" "$($S seen)" "a/b@123"
+
 [ "$fails" = 0 ] && echo "plugin_repos_test: all checks passed" || { echo "plugin_repos_test: $fails failed"; exit 1; }

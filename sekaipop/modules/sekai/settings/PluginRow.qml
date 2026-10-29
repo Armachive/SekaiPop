@@ -4,6 +4,7 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
 import "../../common/functions/PluginForm.js" as PF
+import "../../common/functions/PluginRepos.js" as PR
 
 // One plugin in the Plugins card's list (SettingsPluginsCard.qml): its icon, name, version
 // and id, its description, whether it is on the desktop (and on which monitors), a warning
@@ -23,6 +24,8 @@ Item {
 
     signal openRequested()
     signal actionRequested(string action)
+    // "Update in About": its repository has commits to bring (About / Update's Plugins card).
+    signal aboutRequested()
 
     readonly property bool skipped: skip !== null
     readonly property var plugin: pst ? pst.plugin : null
@@ -33,6 +36,17 @@ Item {
     }
     readonly property string warn: plugin ? PF.warnText(plugin, pst.secretSources) : ""
     readonly property bool hovered: area.containsMouse || key.hovered
+
+    // Where it came from (PluginRepos.repoOf): a repository the shell installed, a folder of the
+    // user's own, or one copied in by hand. Updating it is in About / Update, not here.
+    readonly property var origin: plugin ? PR.repoOf(plugin.target || "", PluginRepoService.reposDir, PluginRepoService.lock) : null
+    readonly property var repoInfo: origin && origin.kind === "repo" ? PluginRepoService.lock.repos[origin.repo] ?? null : null
+    readonly property int behind: {
+        if (!origin || origin.kind !== "repo")
+            return 0
+        const c = PluginRepoService.checkResult[origin.repo]
+        return c && c.status === "ok" && !(repoInfo && repoInfo.pinned) ? c.behind : 0
+    }
 
     implicitHeight: Math.max(46 + 32, main.implicitHeight + 32)
 
@@ -121,6 +135,13 @@ Item {
                 font.pixelSize: root.skipped ? 15 : 13
                 font.weight: Font.Bold
             }
+
+            PluginBadge {
+                visible: root.behind > 0
+                y: 1
+                kind: "on"
+                text: root.behind + (root.behind === 1 ? " commit behind" : " commits behind")
+            }
         }
 
         Text {
@@ -171,6 +192,45 @@ Item {
                 kind: "warn"
                 icon: "error"
                 text: root.warn
+            }
+        }
+
+        // where it came from
+        Flow {
+            visible: !root.skipped && !!root.origin && root.origin.kind !== "copied"
+            width: parent.width
+            spacing: 8
+
+            MaterialIcon {
+                y: 1
+                size: 15
+                name: root.origin && root.origin.kind === "repo" ? "inventory_2" : "folder_special"
+                color: mt.pInkSub
+            }
+
+            Text {
+                text: root.origin && root.origin.kind === "repo" ? "From" : "Managed by you:"
+                color: mt.pInkSub
+                font.family: mt.fontFamily
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+            }
+
+            Text {
+                text: !root.origin ? "" : root.origin.kind === "repo" ? root.origin.repo
+                    : PR.sourceLine("yours", "", false, root.origin.path, Quickshell.env("HOME") || "").code
+                color: mt.pInk
+                font.family: "monospace"
+                font.pixelSize: 13
+            }
+
+            Text {
+                visible: !!root.origin && root.origin.kind === "repo"
+                text: "· updates, going back and removing are in About › Update"
+                color: mt.pInkSub
+                font.family: mt.fontFamily
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
             }
         }
 
@@ -234,6 +294,15 @@ Item {
             font.family: mt.fontFamily
             font.pixelSize: 14
             font.weight: Font.ExtraBold
+        }
+
+        SettingChip {
+            visible: !root.skipped && root.behind > 0
+            capH: 36
+            fontSize: 14
+            label: "Update in About"
+            icon: "update"
+            onClicked: root.aboutRequested()
         }
 
         SettingChip {

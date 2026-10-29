@@ -19,6 +19,8 @@
 #   plugin-repos.sh remove <key>              unlink its plugins and delete its clone
 #   plugin-repos.sh forget <id>               delete a plugin's saved state (its settings)
 #   plugin-repos.sh needs <program>...        print <program>=yes|no for each
+#   plugin-repos.sh list                      print at=<when it was fetched> and the cached list
+#   plugin-repos.sh seen [batch]              print, or store, the update batch last announced
 #   plugin-repos.sh lock                      print the lockfile (or nothing)
 #   plugin-repos.sh lock-save <json>          replace the lockfile, through a temp file
 #
@@ -278,6 +280,22 @@ case "$mode" in
         done
         ;;
 
+    list)
+        [ -f "$listcache" ] || exit 0
+        echo "at=$(date -r "$listcache" +%s)"
+        cat "$listcache"
+        ;;
+
+    seen)
+        f="$cache/plugin-updates-seen"
+        if [ $# -gt 0 ]; then
+            mkdir -p "$cache" && printf '%s\n' "$1" > "$f"
+        else
+            [ -f "$f" ] && cat "$f"
+        fi
+        exit 0
+        ;;
+
     lock)
         [ -f "$lockfile" ] && cat "$lockfile"
         exit 0
@@ -290,7 +308,7 @@ case "$mode" in
         ;;
 
     *)
-        echo "usage: $0 paths|fetch-list|look|install|link|check|update|goback|remove|forget|needs|lock|lock-save" >&2
+        echo "usage: $0 paths|fetch-list|list|look|install|link|check|update|goback|remove|forget|needs|seen|lock|lock-save" >&2
         exit 2
         ;;
 esac
