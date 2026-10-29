@@ -16,6 +16,9 @@ in the bar, every bar edge and style, its pill, and the popup under it. The plug
 
 ## Installing one
 
+The plugins there are to install are listed in the README ([Plugins](../README.md#plugins)), and
+on GitHub under the topic [`sekaipop-plugin`](https://github.com/topics/sekaipop-plugin).
+
 1. Put its folder in `~/.config/sekaipop/plugins/` (or `$XDG_CONFIG_HOME/sekaipop/plugins/`),
    for example with `git clone`. The folder name is the plugin's id.
 2. `qs -c sekaipop ipc call plugins reload` (or restart the shell).
