@@ -38,7 +38,7 @@ It was Illogical Impulse's, so it talked to a shell that is not running:
 | `hyprland/general.lua` | Hyprland options and animations (gaps/border/colours are the shell's to change) |
 | `hyprland/rules.lua` | window rules, plus one layer rule: no compositor animation on `^sekaipop-` |
 | `hyprland/keybinds.lua` | see below |
-| `hypridle.conf` | unchanged behaviour: lock via the shell, screen off 10 min, sleep 15 min |
+| `hypridle.conf` | lock via the shell; the times come from `~/.config/sekaipop/idle.conf`, which Settings > General > Idle & sleep writes (lock 5 min, screen off 10, sleep 15 out of the box; docs/IDLE.md) |
 
 Keybinds (II muscle memory kept where the shell has the feature): Super tap Apps, SUPER+A Apps,
 SUPER+N Quick Panel, SUPER+Tab Overview, SUPER+I Settings, SUPER+/ Cheatsheet, SUPER+K keyboard,

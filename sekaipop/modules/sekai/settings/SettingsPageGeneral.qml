@@ -379,6 +379,96 @@ SettingsPage {
         }
     }
 
+    // hypridle waits for these (IdleService.qml). A hypridle.conf that doesn't read
+    // SekaiPop's file keeps its own times, so the switch comes first then.
+    SectionCard {
+        title: "Idle & sleep"
+
+        Text {
+            width: page.fullWidth
+            text: "After how long without input. Keep Awake, and a video playing, hold all three off."
+            color: Theme.pInkSub
+            font.family: Theme.fontFamily
+            font.pixelSize: 15
+            wrapMode: Text.WordWrap
+        }
+
+        SettingAction {
+            visible: IdleService.linked === "no" || IdleService.linked === "missing"
+            icon: "link"
+            label: "Use these times"
+            detail: IdleService.linking ? "Switching…"
+                : IdleService.linkError !== "" ? IdleService.linkError
+                : IdleService.linked === "missing"
+                    ? "There is no ~/.config/hypr/hypridle.conf, so nothing locks or sleeps on its own. This makes one that uses these times"
+                    : "Your hypridle.conf has times of its own, so these do nothing yet. This switches it to them (its listeners are commented out; a copy is kept as hypridle.conf.sekaipop-bak)"
+            busy: IdleService.linking
+            onActivated: IdleService.link()
+        }
+
+        Text {
+            visible: IdleService.linked === "yes" && !IdleService.running
+            width: page.fullWidth
+            text: "hypridle isn't running, so none of these happen. It is started with Hyprland (execs.lua); start it with: hypridle &"
+            color: Theme.pInkSub
+            font.family: Theme.fontFamily
+            font.pixelSize: 15
+            wrapMode: Text.WordWrap
+        }
+
+        SettingStepper {
+            icon: "lock_clock"
+            label: "Lock after"
+            from: 0
+            to: 120
+            step: 1
+            suffix: " min"
+            specialValue: 0
+            specialText: "Never"
+            value: SettingsService.get("idle.lock")
+            onMoved: v => SettingsService.set("idle.lock", v)
+        }
+
+        SettingStepper {
+            icon: "desktop_access_disabled"
+            label: "Screen off after"
+            from: 0
+            to: 120
+            step: 1
+            suffix: " min"
+            specialValue: 0
+            specialText: "Never"
+            value: SettingsService.get("idle.screenOff")
+            onMoved: v => SettingsService.set("idle.screenOff", v)
+        }
+
+        SettingStepper {
+            icon: "bedtime"
+            label: SettingsService.get("idle.sleepAction") === "hibernate" ? "Hibernate after" : "Sleep after"
+            from: 0
+            to: 240
+            step: 5
+            suffix: " min"
+            specialValue: 0
+            specialText: "Never"
+            value: SettingsService.get("idle.sleep")
+            onMoved: v => SettingsService.set("idle.sleep", v)
+        }
+
+        SettingChoice {
+            label: "Sleep by"
+            sublabel: IdleService.canHibernate === "no"
+                ? "This machine can't hibernate as it is set up (it needs a swap at least as big as your memory, and resume from it): Hibernate would do nothing"
+                : "Suspend keeps your session in memory and wakes in a moment. Hibernate writes it to disk and powers off (needs a big enough swap)"
+            current: SettingsService.get("idle.sleepAction")
+            options: [
+                { id: "suspend", label: "Suspend", icon: "bedtime" },
+                { id: "hibernate", label: "Hibernate", icon: "save" }
+            ]
+            onPicked: id => SettingsService.set("idle.sleepAction", id)
+        }
+    }
+
     SectionCard {
         title: "Shell"
 

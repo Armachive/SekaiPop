@@ -330,6 +330,15 @@ case "$HYPR" in
             fi
             if mv "$NEW" "$HYPR_DEST"; then
                 ok "installed $HYPR_DEST ${D}(put your own changes in $HYPR_DEST/custom/)${Z}"
+                # hypridle.conf takes its idle times from the shell's own file (Settings > General >
+                # Idle & sleep). Make it with the out-of-the-box times if there is none yet, and
+                # restart hypridle, which reads its config only when it starts.
+                IDLE_SH="$HERE/sekaipop/scripts/system/idle-config.sh"
+                if [ ! -f "$CFG/sekaipop/idle.conf" ]; then
+                    XDG_CONFIG_HOME="$CFG" sh "$IDLE_SH" write 300 600 900 suspend >/dev/null || warn "could not write $CFG/sekaipop/idle.conf"
+                else
+                    XDG_CONFIG_HOME="$CFG" sh "$IDLE_SH" restart || warn "could not restart hypridle: log in again for the idle times"
+                fi
             else
                 fail "could not move the new config into place"
                 [ -e "$BACKUP_TO" ] && [ ! -e "$HYPR_DEST" ] && mv "$BACKUP_TO" "$HYPR_DEST"

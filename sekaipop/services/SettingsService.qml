@@ -123,6 +123,14 @@ Singleton {
         // Fingerprint unlock: a second PAM context using pam_fprintd.so runs alongside
         // the password field. Off by default — machines without fprintd will skip it cleanly.
         "lock.fingerprint": false,
+        // Idle: minutes of no input before the screen locks, the screen turns off and the
+        // machine sleeps, 0 = never; and whether it sleeps by suspending or hibernating.
+        // hypridle waits for them (IdleService.qml writes its file). Out of the box they
+        // are what the shipped hypridle.conf always had: 5, 10 and 15.
+        "idle.lock": 5,
+        "idle.screenOff": 10,
+        "idle.sleep": 15,
+        "idle.sleepAction": "suspend",
         // ===== System updates =====
         "updates.nudgeAt": 30,          // from this many updates the badge asks for attention
         "updates.aur": true,            // count AUR updates too (yay / paru, when installed)
