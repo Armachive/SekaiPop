@@ -266,7 +266,6 @@ A plugin is a desktop widget, an entry in the bar with a card under it, or both,
 | Plugin | What it adds |
 | ------ | ------------ |
 | [Tailscale](https://github.com/masshirodev/sekaipop-tailscale) | A bar entry with whether this machine is on your tailnet and how many devices are up (`5/6`); a click lists every device with a status dot and copies its IP. The same list as a desktop widget. |
-| [Kumiko](https://github.com/masshirodev/sekaipop-kumiko) | Three desktop widgets for a [Kumiko](https://kumiko.ink) account: Hours (clock in, pause, out), Lists (tick today's items) and Notifications. |
 <!-- /plugin-list -->
 
 Made one? Give its repository the GitHub topic [`sekaipop-plugin`](https://github.com/topics/sekaipop-plugin) and open a pull request adding it to the list above.
