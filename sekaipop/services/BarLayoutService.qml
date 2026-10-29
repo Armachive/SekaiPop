@@ -32,12 +32,20 @@ import qs.modules.common
 //   qs -c sekaipop ipc call barlayout clearall               (every module off the bar)
 //   qs -c sekaipop ipc call barlayout movescreen DP-1 clock left 0
 //   qs -c sekaipop ipc call barlayout resetscreen DP-1
+//
+// Plugins with a bar entry (PluginService.barModules, docs/PLUGINS.md) are modules too, by
+// the id "plugin:<id>". Their master switch is the plugin's own (PluginState.barShown), not a
+// SettingsService "bar.*" key, and they are off until turned on. One not in a saved layout
+// yet (just installed) goes at the end of the right zone; one in a saved layout that is not
+// installed (any more, or not scanned yet at start-up) keeps its place and takes no room.
 Singleton {
     id: root
 
-    // Every module the bar can carry. `id` is what Status_Bar.qml knows it by
-    // (and what the layout below is made of).
-    readonly property var modules: [
+    // Every module the bar can carry: the built-in ones, then the plugins'. `id` is what
+    // Status_Bar.qml knows it by (and what the layout below is made of).
+    readonly property var modules: root.builtinModules.concat(PluginService.barModules)
+
+    readonly property var builtinModules: [
         { id: "workspaces", label: "Workspaces", icon: "grid_view" },
         { id: "activeWindow", label: "Active window", icon: "web_asset" },
         { id: "media", label: "Media", icon: "music_note" },
@@ -57,6 +65,51 @@ Singleton {
     ]
 
     readonly property var zoneNames: ["left", "center", "right"]
+
+    // ===== plugin modules =====
+    readonly property var pluginIdRe: /^plugin:[a-z0-9][a-z0-9-]{0,39}$/
+
+    function isPlugin(id) {
+        return typeof id === "string" && root.pluginIdRe.test(id)
+    }
+
+    // A name a layout may keep: a built-in module, or anything shaped like a plugin's (it may
+    // not be installed yet, or not scanned yet: the saved layout is read before the plugins).
+    function keepable(id) {
+        return root.builtinModules.some(m => m.id === id) || root.isPlugin(id)
+    }
+
+    // The module's master switch: Settings > Bar > Modules for a built-in one, the plugin's
+    // own for a plugin's. An unknown plugin is off.
+    function masterOn(id) {
+        if (root.isPlugin(id)) {
+            const st = PluginService.stateFor(id)
+            return !!st && st.barShown && !!st.plugin.bar
+        }
+        return SettingsService.flag("bar." + id)
+    }
+
+    function setMaster(id, on) {
+        if (root.isPlugin(id)) {
+            const st = PluginService.stateFor(id)
+            if (st && st.plugin.bar)
+                st.setBarShown(on)
+            return
+        }
+        SettingsService.set("bar." + id, on)
+    }
+
+    // A layout with every installed plugin module in it: one it does not name yet goes at the
+    // end of the right zone.
+    function withPlugins(lay) {
+        const named = lay.left.concat(lay.center, lay.right)
+        const missing = PluginService.barModules.map(m => m.id).filter(id => named.indexOf(id) < 0)
+        if (missing.length === 0)
+            return lay
+        const out = Object.assign({}, lay)
+        out.right = lay.right.concat(missing)
+        return out
+    }
 
     // The default bar:
     //   LEFT    Active window, Media, Tray
@@ -109,7 +162,7 @@ Singleton {
 
     // The layout the bar on monitor `name` is drawn from.
     function layoutFor(name) {
-        return root.ownFor(name) ?? root.layout
+        return root.withPlugins(root.ownFor(name) ?? root.layout)
     }
 
     // Module ids that are switched off on this monitor only.
@@ -121,18 +174,16 @@ Singleton {
     // Is the module on the bar of this monitor? (Its master switch in Settings
     // and, with separate bars, this monitor's own off list.)
     function isOn(id, name) {
-        return SettingsService.flag("bar." + id) && root.offFor(name).indexOf(id) < 0
+        return root.masterOn(id) && root.offFor(name).indexOf(id) < 0
     }
 
     // Which modules are on, by the names Status_Bar.qml uses (SettingsService.
     // barModules, minus what this monitor has taken off).
     function modulesFor(name) {
-        const m = SettingsService.barModules
-        const off = root.offFor(name)
-        if (off.length === 0)
-            return m
-        const out = Object.assign({}, m)
-        for (const id of off)
+        const out = Object.assign({}, SettingsService.barModules)
+        for (const m of PluginService.barModules)
+            out[m.id] = root.masterOn(m.id)
+        for (const id of root.offFor(name))
             out[id] = false
         return out
     }
@@ -150,13 +201,12 @@ Singleton {
     // a module named twice keeps its first place, and a module that is missing
     // (added in a newer version) goes back to its default zone.
     function normalize(raw) {
-        const known = root.modules.map(m => m.id)
         const seen = {}
         const out = { left: [], center: [], right: [] }
         for (const z of root.zoneNames) {
             const list = raw && Array.isArray(raw[z]) ? raw[z] : []
             for (const id of list) {
-                if (known.indexOf(id) >= 0 && !seen[id]) {
+                if (root.keepable(id) && !seen[id]) {
                     seen[id] = true
                     out[z].push(id)
                 }
@@ -192,11 +242,10 @@ Singleton {
         const out = {}
         if (!raw || typeof raw !== "object")
             return out
-        const known = root.modules.map(m => m.id)
         for (const name of Object.keys(raw)) {
             const entry = root.normalize(raw[name])
             const off = raw[name] && Array.isArray(raw[name].off) ? raw[name].off : []
-            entry.off = off.filter((id, i) => known.indexOf(id) >= 0 && off.indexOf(id) === i)
+            entry.off = off.filter((id, i) => root.keepable(id) && off.indexOf(id) === i)
             out[name] = entry
         }
         return out
@@ -282,10 +331,10 @@ Singleton {
             return
         const name = screenName || ""
         if (!root.editsOwn(name)) {
-            SettingsService.set("bar." + id, !off)
+            root.setMaster(id, !off)
             return
         }
-        const wasOnEverywhere = SettingsService.flag("bar." + id)
+        const wasOnEverywhere = root.masterOn(id)
         const next = root.copyFor(name)
         next.off = next.off.filter(x => x !== id)
         if (off)
@@ -302,7 +351,7 @@ Singleton {
                     other.off.push(id)
                 all[s.name] = other
             }
-            SettingsService.set("bar." + id, true)
+            root.setMaster(id, true)
         }
         root.screenLayouts = all
         root.persist()
@@ -320,6 +369,8 @@ Singleton {
     // Modules is on unless the defaults say otherwise: CPU & RAM and Updates
     // are off.)
     function onByDefault(id) {
+        if (root.isPlugin(id))
+            return false
         return SettingsService.defaults["bar." + id] !== false
     }
 
@@ -332,14 +383,14 @@ Singleton {
             root.reset("")
             for (const m of root.modules) {
                 if (root.onByDefault(m.id))
-                    SettingsService.set("bar." + m.id, true)
+                    root.setMaster(m.id, true)
             }
             return
         }
         root.touched = true
         const all = Object.assign({}, root.screenLayouts)
         const offEverywhere = root.modules.map(m => m.id)
-            .filter(id => root.onByDefault(id) && !SettingsService.flag("bar." + id))
+            .filter(id => root.onByDefault(id) && !root.masterOn(id))
         for (const s of Quickshell.screens) {
             if (s.name === name)
                 continue
@@ -354,7 +405,7 @@ Singleton {
         mine.off = []
         all[name] = mine
         for (const id of offEverywhere)
-            SettingsService.set("bar." + id, true)
+            root.setMaster(id, true)
         root.screenLayouts = all
         root.persist()
     }
@@ -369,7 +420,7 @@ Singleton {
         const ids = root.modules.map(m => m.id)
         if (!root.editsOwn(name)) {
             for (const id of ids)
-                SettingsService.set("bar." + id, false)
+                root.setMaster(id, false)
             return
         }
         const next = root.copyFor(name)
@@ -383,14 +434,19 @@ Singleton {
 
     // True when the monitor's bar is not the default one (the shared layout when
     // no monitor is given or the option is off).
+    // Plugin modules are left out of the comparison: the default bar has none, and one that
+    // was only appended (withPlugins) is not a change the user made.
     function customizedFor(name) {
-        const lay = root.layoutFor(name)
-        return JSON.stringify({ left: lay.left, center: lay.center, right: lay.right })
-            !== JSON.stringify(root.defaults)
+        return root.builtinOrder(root.layoutFor(name)) !== JSON.stringify(root.defaults)
+    }
+
+    function builtinOrder(lay) {
+        const f = list => list.filter(id => !root.isPlugin(id))
+        return JSON.stringify({ left: f(lay.left), center: f(lay.center), right: f(lay.right) })
     }
 
     // True when the shared layout is not the default one.
-    readonly property bool customized: JSON.stringify(root.layout) !== JSON.stringify(root.defaults)
+    readonly property bool customized: root.builtinOrder(root.layout) !== JSON.stringify(root.defaults)
 
     // ===== persistence =====
     readonly property string script: Directories.script("state/barlayout-state.sh")

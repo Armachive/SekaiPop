@@ -23,6 +23,9 @@ printf '{\n  "id": "alpha"\n}\n' > "$p/alpha/plugin.json"
 touch "$p/stray-file"
 out=$($S scan)
 expect "scan: a record per folder" "$out" "$(printf '\036alpha')"
+touch "$p/alpha/Widget.qml" "$p/alpha/Popup.qml" "$p/alpha/notes.txt"
+expect "scan: the folder's QML files ride on its line" "$($S scan)" "$(printf '\036alpha\037Widget.qml Popup.qml\n')"
+expect "scan: an empty folder lists no files" "$($S scan)" "$(printf '\036empty\037\n')"
 expect "scan: the manifest follows, newlines kept" "$out" '"id": "alpha"'
 expect "scan: a folder without plugin.json is listed (so it is reported)" "$out" "$(printf '\036empty')"
 case "$out" in *stray-file*) bad "scan: a plain file is not a plugin" ;; *) ok "scan: a plain file is not a plugin" ;; esac

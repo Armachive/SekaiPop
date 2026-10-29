@@ -29,19 +29,38 @@ function plainValue(v) {
     return typeof v === "string" || typeof v === "boolean" || (typeof v === "number" && isFinite(v))
 }
 
-// parse(text, folder) -> { ok: true, plugin } or { ok: false, id, error, code, field }
+// The QML files a plugin folder may hold, by what they are for. The scan says which are there
+// (plugin-state.sh scan); `files` on a plugin is { widget, bar, popup, service } as booleans.
+var FILES = { widget: "Widget.qml", bar: "Bar.qml", popup: "Popup.qml", service: "Service.qml" }
+
+// What the scan's file list says is in the folder. No list at all (an older scan, or a test
+// that only has the manifest) reads as the plugin interface's first shape: a widget alone.
+function readFiles(list) {
+    if (typeof list !== "string")
+        return { widget: true, bar: false, popup: false, service: false }
+    var names = list.split(/\s+/)
+    var out = {}
+    for (var k in FILES)
+        out[k] = names.indexOf(FILES[k]) >= 0
+    return out
+}
+
+// parse(text, folder, files) -> { ok: true, plugin } or { ok: false, id, error, code, field }
+// `files` is the scan's list of the folder's QML files (readFiles); leave it out for a widget.
 // `plugin` is the manifest with every optional field filled in, so nothing downstream has
 // to guess:
 //   { id, name, version, api, description, icon, frame, cloneable, settings, secrets,
-//     settingsInfo, groups }
+//     settingsInfo, groups, bar, files }
+// `bar` is { label, icon } for a plugin with an entry in the bar, null otherwise.
 // `code` says what kind of problem `error` is, so Settings can say it in plain words and name
 // who has to fix it (PluginForm.skipInfo) without matching the message's text:
 //   folder   the folder's name can't be an id        id       id and folder differ
 //   json     plugin.json is not JSON                 object   it is JSON but not an object
 //   api-new  written for a newer shell               api-old  written for an older one
 //   field    a field is missing or wrong (`field` names it)
+//   files    the QML files and the manifest disagree (`bar` without Bar.qml, nothing to draw)
 //   missing  no plugin.json at all (only from scan())
-function parse(text, folder) {
+function parse(text, folder, fileList) {
     var bad = function (code, msg, field) {
         return { ok: false, id: folder, error: msg, code: code, field: field || "" }
     }
@@ -97,6 +116,26 @@ function parse(text, folder) {
         }
     }
 
+    var files = readFiles(fileList)
+    var bar = null
+    if (m.bar !== undefined) {
+        if (!isObj(m.bar))
+            return bad("field", "`bar` must be an object: { label, icon }", "bar")
+        if (!files.bar)
+            return bad("files", "plugin.json has `bar` but the folder has no Bar.qml", "bar")
+        bar = {
+            // The module's name in Settings > Bar and on Edit Desktop's BAR tab.
+            label: typeof m.bar.label === "string" && m.bar.label.trim() !== "" ? m.bar.label.trim() : m.name.trim(),
+            icon: typeof m.bar.icon === "string" && m.bar.icon !== "" ? m.bar.icon : (typeof m.icon === "string" && m.icon !== "" ? m.icon : "extension")
+        }
+    } else if (files.bar) {
+        return bad("files", "the folder has Bar.qml but plugin.json has no `bar`: add \"bar\": { \"label\", \"icon\" }", "bar")
+    }
+    if (!files.widget && !bar)
+        return bad("files", "nothing to draw: a plugin needs Widget.qml, or Bar.qml with `bar` in plugin.json")
+    // A popup belongs to a bar entry; without one nothing could open it.
+    files.popup = files.popup && !!bar
+
     return {
         ok: true,
         plugin: {
@@ -115,7 +154,9 @@ function parse(text, folder) {
             settings: settings,
             secrets: secrets,
             settingsInfo: readSettingsInfo(m.settingsInfo, settings),
-            groups: readGroups(m.groups)
+            groups: readGroups(m.groups),
+            bar: bar,
+            files: files
         }
     }
 }
@@ -223,17 +264,21 @@ function coerce(defaultValue, text) {
 }
 
 // The scan script's output (scripts/state/plugin-state.sh scan): for every plugin folder,
-// a line "\x1e<folder>" followed by its plugin.json (or nothing when it has none).
-// -> [{ folder, text }]
+// a line "\x1e<folder>\x1f<its QML files, space separated>" followed by its plugin.json (or
+// nothing when it has none). A line without "\x1f" (an older script) has no file list.
+// -> [{ folder, text, files }]
 function splitScan(out) {
     var recs = []
     var parts = String(out || "").split("\x1e")
     for (var i = 1; i < parts.length; i++) {
         var nl = parts[i].indexOf("\n")
-        var folder = nl < 0 ? parts[i] : parts[i].slice(0, nl)
+        var head = nl < 0 ? parts[i] : parts[i].slice(0, nl)
         var text = nl < 0 ? "" : parts[i].slice(nl + 1)
+        var us = head.indexOf("\x1f")
+        var folder = us < 0 ? head : head.slice(0, us)
+        var files = us < 0 ? undefined : head.slice(us + 1)
         if (folder !== "")
-            recs.push({ folder: folder, text: text })
+            recs.push({ folder: folder, text: text, files: files })
     }
     return recs
 }
@@ -251,7 +296,7 @@ function scan(out) {
             skipped.push({ id: r.folder, error: "no plugin.json", code: "missing", field: "" })
             continue
         }
-        var p = parse(r.text, r.folder)
+        var p = parse(r.text, r.folder, r.files)
         if (p.ok)
             plugins.push(p.plugin)
         else
@@ -277,6 +322,8 @@ function readState(text, defaults) {
         scale: typeof s.scale === "number" && s.scale > 0 ? s.scale : 0,
         screen: typeof s.screen === "string" ? s.screen : "",
         shown: s.shown === true,
+        // Its entry is on the bar (a plugin with `bar`); off until the user puts it there.
+        bar: s.bar === true,
         settings: mergeSettings(defaults || {}, s.settings)
     }
 }

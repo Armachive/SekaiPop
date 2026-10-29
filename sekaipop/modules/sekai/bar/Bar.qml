@@ -200,7 +200,7 @@ PanelWindow {
     property bool hoverWin: false
     readonly property bool popupOpen: win.trayOpen || trayPopups.showing || win.batteryPopupOpen
         || win.utilPopupOpen || win.resourcePopupOpen || win.calendarPopupOpen || win.weatherPopupOpen
-        || win.mediaPopupOpen || win.eqPopupOpen || win.discordPopupOpen
+        || win.mediaPopupOpen || win.eqPopupOpen || win.discordPopupOpen || win.pluginPopup !== ""
     readonly property bool revealed: !win.autoHide || win.editing || win.hoverWin || win.popupOpen
         || hideGrace.running || peekHold.running
     // How deep the line on the edge is, real pixels.
@@ -258,6 +258,7 @@ PanelWindow {
                 win.mediaPopupOpen = false
                 win.eqPopupOpen = false
                 win.discordPopupOpen = false
+                win.pluginPopup = ""
         }
     }
 
@@ -276,6 +277,7 @@ PanelWindow {
                 win.mediaPopupOpen = false
                 win.eqPopupOpen = false
                 win.discordPopupOpen = false
+                win.pluginPopup = ""
         }
     }
 
@@ -393,6 +395,36 @@ PanelWindow {
     property bool discordPopupOpen: false
     // The utility keys' flyout (UtilPopup.qml), for a short standing bar.
     property bool utilPopupOpen: false
+    // The plugin whose popup is open, as "plugin:<id>" ("" = none): one at a time, like the rest.
+    property string pluginPopup: ""
+
+    // The plugins' bar entries (docs/PLUGINS.md), for Status_Bar: each with its state.
+    readonly property var pluginEntries: PluginService.barPlugins
+        .map(f => ({ key: "plugin:" + f.plugin.id, st: PluginService.states[f.plugin.id] ?? null }))
+        .filter(e => e.st !== null)
+
+    // A plugin entry's left click: its popup, when it has one.
+    function togglePluginPopup(key) {
+        const e = win.pluginEntries.find(x => x.key === key)
+        if (!e || !e.st.plugin.files.popup)
+            return
+        const opening = win.pluginPopup !== key
+        eqPopupOpen = false
+        mediaPopupOpen = false
+        discordPopupOpen = false
+        batteryPopupOpen = false
+        utilPopupOpen = false
+        resourcePopupOpen = false
+        calendarPopupOpen = false
+        weatherPopupOpen = false
+        pluginPopup = opening ? key : ""
+    }
+
+    // A plugin that goes away (removed, or its entry switched off) takes its popup with it.
+    onPluginEntriesChanged: {
+        if (win.pluginPopup !== "" && !win.pluginEntries.some(e => e.key === win.pluginPopup))
+            win.pluginPopup = ""
+    }
 
     function toggleMediaPopup() {
         if (eqPopupOpen) {
@@ -406,6 +438,7 @@ PanelWindow {
         calendarPopupOpen = false
         weatherPopupOpen = false
         discordPopupOpen = false
+        pluginPopup = ""
         mediaPopupOpen = !mediaPopupOpen
     }
 
@@ -419,6 +452,7 @@ PanelWindow {
         weatherPopupOpen = false
         discordPopupOpen = false
         mediaPopupOpen = false
+        pluginPopup = ""
         eqPopupOpen = true
     }
 
@@ -452,6 +486,7 @@ PanelWindow {
         resourcePopupOpen = false
         calendarPopupOpen = false
         weatherPopupOpen = false
+        pluginPopup = ""
         discordPopupOpen = DiscordVoiceService.inVoice && !discordPopupOpen
     }
 
@@ -472,6 +507,7 @@ PanelWindow {
         calendarPopupOpen = false
         weatherPopupOpen = false
         utilPopupOpen = false
+        pluginPopup = ""
         batteryPopupOpen = !batteryPopupOpen
     }
     function toggleResourcePopup() {
@@ -482,6 +518,7 @@ PanelWindow {
         utilPopupOpen = false
         calendarPopupOpen = false
         weatherPopupOpen = false
+        pluginPopup = ""
         resourcePopupOpen = !resourcePopupOpen
     }
     function toggleCalendarPopup() {
@@ -492,6 +529,7 @@ PanelWindow {
         utilPopupOpen = false
         resourcePopupOpen = false
         weatherPopupOpen = false
+        pluginPopup = ""
         calendarPopupOpen = !calendarPopupOpen
     }
     function toggleWeatherPopup() {
@@ -502,6 +540,7 @@ PanelWindow {
         utilPopupOpen = false
         resourcePopupOpen = false
         calendarPopupOpen = false
+        pluginPopup = ""
         weatherPopupOpen = !weatherPopupOpen
     }
     // The tools key of a short standing bar (Status_Bar `utilFlyout`).
@@ -513,6 +552,7 @@ PanelWindow {
         resourcePopupOpen = false
         calendarPopupOpen = false
         weatherPopupOpen = false
+        pluginPopup = ""
         utilPopupOpen = !utilPopupOpen
     }
 
@@ -677,6 +717,28 @@ PanelWindow {
             anchorItem: statusBar.dateToggle
             today: clock.date
             onCloseRequested: win.calendarPopupOpen = false
+        }
+    }
+
+    // The plugins' popups, one per plugin entry that has a Popup.qml (PluginPopup.qml builds
+    // the plugin's card the first time it opens).
+    Instantiator {
+        model: win.pluginEntries.filter(e => e.st.plugin.files.popup)
+
+        delegate: PluginPopup {
+            required property var modelData
+            key: modelData.key
+            st: modelData.st
+            // Starts closed and opens a beat later, like the built-in popups.
+            property bool ready: false
+            Component.onCompleted: Qt.callLater(() => ready = true)
+            open: win.pluginPopup === modelData.key && ready && !!anchorItem && anchorItem.visible
+            parentWindow: win
+            anchorItem: statusBar.pluginItems[modelData.key] ?? null
+            onCloseRequested: {
+                if (win.pluginPopup === modelData.key)
+                    win.pluginPopup = ""
+            }
         }
     }
 
@@ -1028,6 +1090,9 @@ PanelWindow {
                 weatherTemperature: weatherSource.temperatureText !== "" ? weatherSource.temperatureText : "--"
                 weatherIconName: weatherSource.iconName
                 onWeatherClicked: win.toggleWeatherPopup()
+                pluginEntries: win.pluginEntries
+                pluginPopupOpen: win.pluginPopup
+                onPluginClicked: key => win.togglePluginPopup(key)
 
                 batteryAvailable: batterySource.available
                 batteryPercentage: batterySource.percentage

@@ -35,6 +35,13 @@ import "../modules/common/functions/PluginManifest.js" as PM
 //   qs -c sekaipop ipc call plugins set <id> <key> <value>
 //   qs -c sekaipop ipc call plugins resetPosition <id>
 //   qs -c sekaipop ipc call plugins settings <id>      open Settings > Desktop > Plugins on it
+//   qs -c sekaipop ipc call plugins bar <id> on|off|toggle   its entry on the bar
+//
+// A plugin can also put an entry in the bar (Bar.qml, and a Popup.qml under it), when its
+// manifest has `bar`. The bar takes it from `barModules` like a built-in module
+// (BarLayoutService.modules): placed in Settings > Bar and Edit Desktop's BAR tab, switched
+// on and off by PluginState.barShown. A plugin with only a bar entry has no Widget.qml and
+// is not on the desktop shelf.
 Singleton {
     id: root
 
@@ -60,12 +67,26 @@ Singleton {
     // { pluginId: PluginState }, filled as the states are made.
     property var states: ({})
 
-    // The plugin ids shell.qml builds windows for. A new array only when a plugin comes or
-    // goes, so a rescan that finds the same plugins does not rebuild their windows.
+    // The plugin ids shell.qml builds desktop windows for (the ones with a Widget.qml). A new
+    // array only when a plugin comes or goes, so a rescan that finds the same plugins does
+    // not rebuild their windows.
     property var ids: []
 
+    // The plugins with a desktop widget, and the ones with a bar entry.
+    readonly property var widgetPlugins: root.found.filter(f => f.plugin.files.widget)
+    readonly property var barPlugins: root.found.filter(f => !!f.plugin.bar)
+
+    // The bar modules the plugins add (BarLayoutService.modules): "plugin:<id>", by the
+    // label and icon of the manifest's `bar`.
+    readonly property var barModules: root.barPlugins.map(f => ({
+        id: "plugin:" + f.plugin.id,
+        label: f.plugin.bar.label,
+        icon: f.plugin.bar.icon,
+        plugin: true
+    }))
+
     // What Edit Desktop's shelf shows after the built-in widgets (EditMode.shelfList).
-    readonly property var shelfEntries: root.found.map(f => ({
+    readonly property var shelfEntries: root.widgetPlugins.map(f => ({
         id: "plugin:" + f.plugin.id,
         title: f.plugin.name,
         icon: f.plugin.icon
@@ -76,7 +97,7 @@ Singleton {
     // first moment after start can't record a plugin as off that is really on.
     readonly property var presetEntries: {
         const out = []
-        for (const f of root.found) {
+        for (const f of root.widgetPlugins) {
             const st = root.states[f.plugin.id]
             if (st && st.loaded)
                 out.push({ id: st.widgetId, service: st, skip: ["settings"] })
@@ -161,7 +182,7 @@ Singleton {
 
     function take(result) {
         const next = result.plugins.map(p => ({ plugin: p, dir: root.pluginsDir + "/" + p.id }))
-        const nextIds = next.map(f => f.plugin.id)
+        const nextIds = next.filter(f => f.plugin.files.widget).map(f => f.plugin.id)
         // A plugin whose manifest changed gets a new state (its settings may be different);
         // one that did not keeps the one it has, and its window.
         if (JSON.stringify(next) !== JSON.stringify(root.found))
@@ -227,7 +248,12 @@ Singleton {
             const lines = []
             for (const f of root.found) {
                 const st = root.states[f.plugin.id]
-                lines.push(f.plugin.id + "  " + f.plugin.version + "  " + (st && st.shown ? "on" : "off") + "  " + f.plugin.name)
+                const where = []
+                if (f.plugin.files.widget)
+                    where.push("desktop " + (st && st.shown ? "on" : "off"))
+                if (f.plugin.bar)
+                    where.push("bar " + (st && st.barShown ? "on" : "off"))
+                lines.push(f.plugin.id + "  " + f.plugin.version + "  " + where.join(", ") + "  " + f.plugin.name)
             }
             for (const s of root.skipped)
                 lines.push(s.id + "  skipped: " + s.error)
@@ -277,6 +303,19 @@ Singleton {
                 return "no plugin " + id
             root.askSettings(id, "")
             return "opening " + id
+        }
+
+        // Its entry on the bar: "on", "off" or "toggle". With separate bars per monitor this
+        // is the switch for every monitor, as Settings > Bar > Modules is.
+        function bar(id: string, value: string): string {
+            const st = root.stateFor(id)
+            if (!st)
+                return "no plugin " + id
+            if (!st.plugin.bar)
+                return id + " has no bar entry"
+            const on = value === "toggle" ? !st.barShown : (value === "on" || value === "true" || value === "1")
+            st.setBarShown(on)
+            return id + " on the bar: " + (on ? "on" : "off")
         }
 
         function resetPosition(id: string): void {

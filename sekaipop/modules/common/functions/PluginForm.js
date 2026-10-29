@@ -181,6 +181,8 @@ function skipInfo(s) {
         return { reason: "This folder has no plugin.json, so it isn't a plugin.", fix: "To fix: check the clone, or remove the folder", action: "folder" }
     case "field":
         return { reason: "Its plugin.json is missing or misspells: " + (s.field || "a field") + ".", fix: authorFix, action: "folder" }
+    case "files":
+        return { reason: "Its files and its plugin.json don't agree: " + (s.error || "a QML file is missing") + ".", fix: authorFix, action: "folder" }
     }
     return { reason: "It could not be loaded.", fix: authorFix, action: "folder" }
 }

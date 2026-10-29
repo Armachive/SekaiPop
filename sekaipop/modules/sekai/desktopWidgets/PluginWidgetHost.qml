@@ -157,6 +157,29 @@ PanelWindow {
     // by Focus Mode. A widget that polls something should poll only while this is true.
     readonly property bool working: win.live || (win.switchedOn && !gate.suspended)
 
+    // Tells the plugin's shared service that a widget is up (PluginState.want), under a key
+    // of this window's own, so a copy on another monitor going away does not switch it off.
+    property string claimed: ""
+
+    function syncClaim(): void {
+        const key = win.st && win.working ? "widget:" + (win.clone ? "copy:" : "") + win.wantedScreen : ""
+        if (key === win.claimed)
+            return
+        if (win.claimed !== "" && win.st)
+            win.st.want(win.claimed, false)
+        win.claimed = key
+        if (key !== "")
+            win.st.want(key, true)
+    }
+
+    onWorkingChanged: win.syncClaim()
+    onWantedScreenChanged: win.syncClaim()
+    onStChanged: win.syncClaim()
+    Component.onDestruction: {
+        if (win.claimed !== "" && win.st)
+            win.st.want(win.claimed, false)
+    }
+
     visible: win.stLoaded && (win.live || EditMode.active)
 
     WlrLayershell.layer: (chrome.raised || WallpaperService.restacking) ? WlrLayer.Bottom : WlrLayer.Background
@@ -220,6 +243,10 @@ PanelWindow {
         readonly property bool clone: win.clone
         // On screen (or about to be): run timers and fetches only while this is true.
         readonly property bool working: win.working
+        // The plugin's Service.qml, shared with its bar entries and popups; null without one.
+        readonly property var service: win.st ? win.st.service : null
+        // Which of the plugin's surfaces are showing ("widget", "bar", "popup").
+        readonly property var wanted: win.st ? win.st.wanted : []
         // Edit Desktop is on for this monitor, and whether this widget is the one selected
         // there (then it should work as it does on the desktop).
         readonly property bool editing: chrome.editing
@@ -284,6 +311,7 @@ PanelWindow {
     Component.onCompleted: {
         win.reveal = win.want ? 1 : 0
         win.place()
+        win.syncClaim()
     }
 
     Connections {

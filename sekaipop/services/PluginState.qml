@@ -19,6 +19,12 @@ import "../modules/common/functions/PluginManifest.js" as PM
 //              again by reloadSecrets(), Settings' Reload); never saved here and never
 //              part of a preset. secretSources says where each one was found, for
 //              Settings, which never shows a value.
+//   barShown   its entry is on the bar (a plugin whose manifest has `bar`), the bar's own
+//              on / off switch for it, as `bar.<module>` is for a built-in one
+//              (BarLayoutService.isOn); saved here, off until the user turns it on
+//   service    the plugin's Service.qml, made once and shared by its widget, its bar
+//              entries and its popups (`host.service`), so three surfaces on three monitors
+//              poll once. It runs while any of them shows: `wanted` lists which.
 QtObject {
     id: root
 
@@ -33,6 +39,7 @@ QtObject {
 
     property bool loaded: false
     property bool shown: false
+    property bool barShown: false
     property real posX: -1
     property real posY: -1
     property real posScale: 0
@@ -63,6 +70,39 @@ QtObject {
         root.shown = value
         root.persist()
     }
+
+    function setBarShown(value) {
+        root.barShown = value
+        root.persist()
+    }
+
+    // ===== what is showing, for the service =====
+    // Each surface that shows says so under its own key ("widget:DP-1", "bar:DP-1",
+    // "popup:DP-1"), so one going away never switches off another. `wanted` is the kinds
+    // that are showing, in this order: a service checks slowly for "bar" alone and at its
+    // own pace when a "popup" or a "widget" is up.
+    property var claims: ({})
+
+    function want(key, on) {
+        if (!!root.claims[key] === !!on)
+            return
+        const c = Object.assign({}, root.claims)
+        if (on)
+            c[key] = true
+        else
+            delete c[key]
+        root.claims = c
+    }
+
+    readonly property var wanted: {
+        const out = []
+        for (const kind of ["widget", "bar", "popup"]) {
+            if (Object.keys(root.claims).some(k => k.indexOf(kind + ":") === 0))
+                out.push(kind)
+        }
+        return out
+    }
+    readonly property bool working: root.wanted.length > 0
 
     // false when the plugin does not declare `key` or the value is not of its type.
     function setSetting(key, value) {
@@ -99,6 +139,7 @@ QtObject {
             scale: root.posScale,
             screen: root.screenName,
             shown: root.shown,
+            bar: root.barShown,
             settings: root.settings
         })
     }
@@ -110,6 +151,7 @@ QtObject {
         root.posScale = s.scale
         root.screenName = s.screen
         root.shown = s.shown
+        root.barShown = s.bar
         root.settings = s.settings
         root.loaded = true
     }
@@ -169,7 +211,10 @@ QtObject {
         return out
     }
 
-    Component.onCompleted: root.reloadSecrets()
+    Component.onCompleted: {
+        root.reloadSecrets()
+        root.makeService()
+    }
 
     // The environment is the shell's own, so only a file can change while it runs; this reads
     // the files again (Settings' Reload, after the user has put a token in place).
@@ -223,5 +268,66 @@ QtObject {
                 root.readNextSecret()
             }
         }
+    }
+
+    // ===== the service =====
+    // What Service.qml is handed: the part of `host` that is not about a surface (no theme,
+    // monitor or size). Its `working` is true while any surface shows; `wanted` says which.
+    readonly property QtObject serviceHost: QtObject {
+        readonly property int apiVersion: PM.API_VERSION
+        readonly property string id: root.pluginId
+        readonly property string name: root.plugin.name
+        readonly property string version: root.plugin.version
+        readonly property string dir: root.dir
+        readonly property var settings: root.settings
+        readonly property var secrets: root.secrets
+        readonly property bool working: root.working
+        readonly property var wanted: root.wanted
+
+        function path(rel) {
+            return root.dir + "/" + rel
+        }
+
+        function reloadSecrets() {
+            root.reloadSecrets()
+        }
+
+        function setSetting(key, value) {
+            return root.setSetting(key, value)
+        }
+    }
+
+    // null when the plugin has no Service.qml, or it did not load (the error is logged).
+    property var service: null
+
+    property Component serviceComponent: null
+
+    function makeService() {
+        if (!root.plugin.files || !root.plugin.files.service)
+            return
+        root.serviceComponent = Qt.createComponent("file://" + root.dir + "/Service.qml", Component.Asynchronous)
+        if (root.serviceComponent.status === Component.Loading)
+            root.serviceComponent.statusChanged.connect(root.serviceReady)
+        else
+            root.serviceReady()
+    }
+
+    function serviceReady() {
+        const c = root.serviceComponent
+        if (!c || c.status === Component.Loading)
+            return
+        if (c.status === Component.Error) {
+            console.warn("PluginState: " + root.pluginId + "/Service.qml did not load: " + c.errorString())
+            return
+        }
+        // Made with the state as its parent, so it goes when the plugin does.
+        root.service = c.createObject(root, { host: root.serviceHost })
+        if (!root.service)
+            console.warn("PluginState: " + root.pluginId + "/Service.qml could not be made (does it declare `required property var host`?)")
+    }
+
+    Component.onDestruction: {
+        if (root.service)
+            root.service.destroy()
     }
 }

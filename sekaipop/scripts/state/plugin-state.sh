@@ -4,8 +4,10 @@
 # spot, monitor, on / off and settings (docs/PLUGINS.md).
 #
 #   plugin-state.sh scan              for every folder in the plugins folder, a line
-#                                     "\036<folder>" and then its plugin.json (nothing
-#                                     after the line when it has none)
+#                                     "\036<folder>\037<its QML files>" (the ones of
+#                                     Widget.qml Bar.qml Popup.qml Service.qml that are
+#                                     there, space separated) and then its plugin.json
+#                                     (nothing after the line when it has none)
 #   plugin-state.sh dir               print the plugins folder
 #   plugin-state.sh load <id>         print the remembered JSON (or nothing at all)
 #   plugin-state.sh save <id> <json>  replace the remembered state with <json>
@@ -35,7 +37,11 @@ case "$mode" in
         for d in "$plugins"/*/; do
             [ -d "$d" ] || continue
             name=$(basename "$d")
-            printf '\036%s\n' "$name"
+            files=""
+            for f in Widget.qml Bar.qml Popup.qml Service.qml; do
+                [ -f "$d/$f" ] && files="${files:+$files }$f"
+            done
+            printf '\036%s\037%s\n' "$name" "$files"
             [ -f "$d/plugin.json" ] && cat "$d/plugin.json"
         done
         exit 0
