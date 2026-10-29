@@ -1,0 +1,9 @@
+[
+    {
+        "repo": "masshirodev/sekaipop-tailscale",
+        "description": "Whether this machine is on your tailnet and how many devices are up, in the bar; a click lists every device with its state and copies its IP. The same list as a desktop widget.",
+        "tags": ["bar", "widget", "network"],
+        "needs": ["tailscale", "wl-copy"],
+        "sekaipop": "1.0.0"
+    }
+]
