@@ -1,5 +1,6 @@
 import QtQuick
 import qs.services
+import qs.modules.common
 
 // Desktop: the wallpaper and how it changes, the widgets on the desktop,
 // the dock, and the effects that touch the whole screen.
