@@ -44,6 +44,7 @@ qs -c sekaipop ipc call plugins set <id> <key> <value> # change a setting
 qs -c sekaipop ipc call plugins resetPosition <id>     # if it ends up off-screen
 qs -c sekaipop ipc call plugins settings <id>          # open Settings > Desktop > Plugins on it
 qs -c sekaipop ipc call plugins bar <id> on            # its bar entry: on, off or toggle
+qs -c sekaipop ipc call plugins popup <id>             # open / close its popup (for a keybind)
 qs -c sekaipop ipc call desktopedit movewidget plugin:<id> DP-2
 ```
 

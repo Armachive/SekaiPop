@@ -36,6 +36,7 @@ import "../modules/common/functions/PluginManifest.js" as PM
 //   qs -c sekaipop ipc call plugins resetPosition <id>
 //   qs -c sekaipop ipc call plugins settings <id>      open Settings > Desktop > Plugins on it
 //   qs -c sekaipop ipc call plugins bar <id> on|off|toggle   its entry on the bar
+//   qs -c sekaipop ipc call plugins popup <id>         open / close its popup (focused monitor)
 //
 // A plugin can also put an entry in the bar (Bar.qml, and a Popup.qml under it), when its
 // manifest has `bar`. The bar takes it from `barModules` like a built-in module
@@ -156,6 +157,10 @@ Singleton {
     property string settingsTarget: ""
 
     signal settingsWanted(string screen)
+
+    // `ipc call plugins popup <id>`: the bar on the focused monitor opens or closes that
+    // plugin's popup (Bar.qml), as a click on its entry would.
+    signal popupWanted(string key)
 
     function askSettings(id, screen) {
         const st = root.stateFor(id)
@@ -316,6 +321,19 @@ Singleton {
             const on = value === "toggle" ? !st.barShown : (value === "on" || value === "true" || value === "1")
             st.setBarShown(on)
             return id + " on the bar: " + (on ? "on" : "off")
+        }
+
+        // For a keybind: the same as a left click on its entry, on the focused monitor's bar.
+        function popup(id: string): string {
+            const st = root.stateFor(id)
+            if (!st)
+                return "no plugin " + id
+            if (!st.plugin.files.popup)
+                return id + " has no popup"
+            if (!st.barShown)
+                return id + " is not on the bar (ipc call plugins bar " + st.pluginId + " on)"
+            root.popupWanted(st.widgetId)
+            return "toggling " + id + "'s popup"
         }
 
         function resetPosition(id: string): void {

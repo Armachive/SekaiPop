@@ -249,6 +249,8 @@ for (const fn of ["toggleMediaPopup", "openEqPopup", "toggleDiscordPopup", "togg
     assert.ok(body.slice(0, body.indexOf("\n    }\n")).includes('pluginPopup = ""'), "Bar." + fn + "() closes a plugin's popup")
 }
 assert.ok(/\|\| win\.pluginPopup !== ""/.test(barQml), "an open plugin popup keeps an auto-hiding bar out")
+assert.ok(/function onPopupWanted\(key\)/.test(barQml) && /signal popupWanted\(string key\)/.test(read("services/PluginService.qml")),
+    "`ipc call plugins popup <id>` reaches the bar")
 
 // every theme name the doc promises exists in the theme
 const themeSet = read("modules/common/ThemeSet.qml")

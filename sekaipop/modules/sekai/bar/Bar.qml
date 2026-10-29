@@ -420,6 +420,20 @@ PanelWindow {
         pluginPopup = opening ? key : ""
     }
 
+    // `ipc call plugins popup <id>`: only the focused monitor's bar answers, and only when
+    // the entry is on it.
+    Connections {
+        target: PluginService
+        function onPopupWanted(key) {
+            const name = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+            if (win.screen === null || (name !== "" && win.screen.name !== name))
+                return
+            const it = statusBar.pluginToggle(key)
+            if (it && it.visible)
+                win.togglePluginPopup(key)
+        }
+    }
+
     // A plugin that goes away (removed, or its entry switched off) takes its popup with it.
     onPluginEntriesChanged: {
         if (win.pluginPopup !== "" && !win.pluginEntries.some(e => e.key === win.pluginPopup))
