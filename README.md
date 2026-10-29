@@ -260,7 +260,16 @@ Edit the files in `~/.config/hypr/custom/` (`keybinds.lua`, `rules.lua`, `variab
 
 ### Plugins
 
-Desktop widgets can come from their own folder, usually their own repo: put one in `~/.config/sekaipop/plugins/`, run `qs -c sekaipop ipc call plugins reload`, and add it from Edit Desktop like any other widget. A plugin runs with the shell's full rights, so install only what you would run as your own script. Writing one, and the interface it gets: [Plugins](docs/PLUGINS.md); the smallest example is [hello clock](examples/plugins/hello-clock/).
+A plugin is a desktop widget, an entry in the bar with a card under it, or both, kept in its own folder, usually its own repo: put one in `~/.config/sekaipop/plugins/` (most come with an `install.sh` that does it), run `qs -c sekaipop ipc call plugins reload`, then add its widget from Edit Desktop and switch its bar entry on in Settings > Bar > Modules. A plugin runs with the shell's full rights, so install only what you would run as your own script. Writing one, and the interface it gets: [Plugins](docs/PLUGINS.md); the smallest examples are [hello clock](examples/plugins/hello-clock/) (a widget) and [hello bar](examples/plugins/hello-bar/) (a bar entry).
+
+<!-- plugin-list -->
+| Plugin | What it adds |
+| ------ | ------------ |
+| [Tailscale](https://github.com/masshirodev/sekaipop-tailscale) | A bar entry with whether this machine is on your tailnet and how many devices are up (`5/6`); a click lists every device with a status dot and copies its IP. The same list as a desktop widget. |
+| [Kumiko](https://github.com/masshirodev/sekaipop-kumiko) | Three desktop widgets for a [Kumiko](https://kumiko.ink) account: Hours (clock in, pause, out), Lists (tick today's items) and Notifications. |
+<!-- /plugin-list -->
+
+Made one? Give its repository the GitHub topic [`sekaipop-plugin`](https://github.com/topics/sekaipop-plugin) and open a pull request adding it to the list above.
 
 <img src="assets/divider.svg" alt="" width="100%">
 
