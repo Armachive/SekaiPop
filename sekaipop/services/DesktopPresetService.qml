@@ -176,6 +176,7 @@ Singleton {
     readonly property var keepPrefix: [
         "updates.",
         "idle.",
+        "appFonts.",
         "wallhaven.",
         "focus.",
         "timer.",

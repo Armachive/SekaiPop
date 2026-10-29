@@ -30,6 +30,15 @@ Item {
 
     signal submitted(string text)
     signal cleared()
+    // Every keystroke, for a field that searches as you type (App fonts).
+    signal edited(string text)
+
+    // Back to `value`, and the keyboard let go, without sending `submitted`: for a field
+    // whose choice was made somewhere else (a match picked under it).
+    function reset() {
+        input.text = root.value
+        input.focus = false
+    }
 
     width: parent ? parent.width : 600
     height: Math.max(labelColumn.implicitHeight, 58)
@@ -94,6 +103,7 @@ Item {
             font.pixelSize: 17
             font.weight: Font.DemiBold
 
+            onTextEdited: root.edited(input.text)
             onAccepted: {
                 root.submitted(input.text.trim())
                 input.focus = false

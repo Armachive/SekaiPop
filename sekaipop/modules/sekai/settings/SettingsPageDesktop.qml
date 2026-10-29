@@ -1206,6 +1206,129 @@ SettingsPage {
         }
     }
 
+    // What was typed in the App fonts fields, for the matches under them.
+    property string uiFontQuery: ""
+    property string monoFontQuery: ""
+
+    // GTK, Qt and KDE apps' font (AppFontService.qml, scripts/theming/app-fonts.sh says
+    // where each kind of app reads it). Type part of a name, pick it from the matches.
+    SectionCard {
+        title: "App fonts"
+
+        Component.onCompleted: AppFontService.refresh()
+
+        Text {
+            width: page.fullWidth
+            text: "The font of your GTK, Qt and KDE apps (the shell's own comes with its theme). Open apps change at once, and a font picked here is put back at every start if something else changes it."
+            color: Theme.pInkSub
+            font.family: Theme.fontFamily
+            font.pixelSize: 15
+            wrapMode: Text.WordWrap
+        }
+
+        SettingText {
+            id: uiFontField
+            label: "Font"
+            sublabel: AppFontService.note !== "" ? AppFontService.note
+                : AppFontService.families.length === 0 ? "Looking for fonts…"
+                : "Type part of a name, then pick it below"
+            value: AppFontService.shownUi
+            placeholder: "Type a font's name"
+            clearable: false
+            onEdited: text => page.uiFontQuery = text
+            onSubmitted: text => {
+                if (text === AppFontService.shownUi)
+                    return
+                const f = AppFontService.exact(text, false)
+                if (f !== "") {
+                    AppFontService.setUi(f)
+                    page.uiFontQuery = ""
+                } else {
+                    page.uiFontQuery = text
+                }
+            }
+        }
+
+        SettingChoice {
+            readonly property var found: AppFontService.matches(page.uiFontQuery, false, 8)
+            visible: page.uiFontQuery.trim() !== ""
+            label: found.length === 0 ? "No match" : "Matches"
+            sublabel: found.length === 0 ? "No installed font has that in its name" : ""
+            current: AppFontService.shownUi
+            options: found.map(f => ({ id: f, label: f, icon: "font_download" }))
+            onPicked: id => {
+                AppFontService.setUi(id)
+                page.uiFontQuery = ""
+                uiFontField.reset()
+            }
+        }
+
+        SettingStepper {
+            icon: "format_size"
+            label: "Size"
+            from: 6
+            to: 24
+            step: 1
+            suffix: " pt"
+            value: AppFontService.shownUiSize
+            onMoved: v => AppFontService.setUiSize(v)
+        }
+
+        SettingText {
+            id: monoFontField
+            label: "Monospace"
+            sublabel: "Terminals and code editors that follow the system's"
+            value: AppFontService.shownMono
+            placeholder: "Type a font's name"
+            clearable: false
+            onEdited: text => page.monoFontQuery = text
+            onSubmitted: text => {
+                if (text === AppFontService.shownMono)
+                    return
+                const f = AppFontService.exact(text, true)
+                if (f !== "") {
+                    AppFontService.setMono(f)
+                    page.monoFontQuery = ""
+                } else {
+                    page.monoFontQuery = text
+                }
+            }
+        }
+
+        SettingChoice {
+            readonly property var found: AppFontService.matches(page.monoFontQuery, true, 8)
+            visible: page.monoFontQuery.trim() !== ""
+            label: found.length === 0 ? "No match" : "Matches"
+            sublabel: found.length === 0 ? "No monospaced font has that in its name (a full name of any font works too)" : ""
+            current: AppFontService.shownMono
+            options: found.map(f => ({ id: f, label: f, icon: "code" }))
+            onPicked: id => {
+                AppFontService.setMono(id)
+                page.monoFontQuery = ""
+                monoFontField.reset()
+            }
+        }
+
+        SettingStepper {
+            icon: "format_size"
+            label: "Monospace size"
+            from: 6
+            to: 24
+            step: 1
+            suffix: " pt"
+            value: AppFontService.shownMonoSize
+            onMoved: v => AppFontService.setMonoSize(v)
+        }
+
+        SettingAction {
+            visible: AppFontService.chosen
+            icon: "undo"
+            label: "Use the system's"
+            detail: "Stop putting these fonts back at start (the apps keep them until something else sets one)"
+            onActivated: AppFontService.forget()
+        }
+    }
+
     SectionCard {
         title: "Effects"
 
