@@ -3,6 +3,7 @@ import Quickshell
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
+import "../../common/functions/PluginRepos.js" as PR
 
 // Settings > Desktop > Plugins (docs/PLUGIN-SETTINGS.md): every desktop widget plugin that
 // is installed, the folders that did not load and why, and each plugin's settings, edited
@@ -33,6 +34,17 @@ SectionCard {
             UpdateService.check(true)
         else
             PluginService.openFolder(id)
+    }
+
+    // About / Update, scrolled to its Plugins card (an update is there, not here).
+    function goAbout() {
+        const f = card.settingsPage ? card.settingsPage.host : null
+        if (!f || !f.pages)
+            return
+        PluginRepoService.aboutTarget = "plugins"
+        for (let i = 0; i < f.pages.length; i++)
+            if (f.pages[i].id === "about")
+                f.go(i)
     }
 
     function placeIt() {
@@ -76,7 +88,7 @@ SectionCard {
         }
 
         Paragraph {
-            text: "A plugin is a folder with a plugin.json and a Widget.qml. Put its folder here, for example with git clone, then press Reload:"
+            text: "Get one from About › Update › Get plugins, which installs it for you. Or put a plugin's folder here yourself (one with a plugin.json), then press Reload:"
         }
 
         Rectangle {
@@ -97,7 +109,7 @@ SectionCard {
 
         Paragraph {
             sub: true
-            text: "The folder's name is the plugin's id. Nothing is downloaded for you, and no restart is needed."
+            text: "The folder's name is the plugin's id. A folder you put here yourself is never updated or removed by the shell, and no restart is needed."
         }
     }
 
@@ -142,7 +154,37 @@ SectionCard {
 
             Paragraph {
                 sub: true
-                text: "Read from ~/.config/sekaipop/plugins/. Place them in Edit Desktop, like the widgets above."
+                text: "Read from ~/.config/sekaipop/plugins/. Place them in Edit Desktop, like the widgets above. Getting, updating and removing them is in About › Update."
+            }
+
+            Row {
+                visible: PluginRepoService.updates.length > 0
+                topPadding: 6
+                spacing: 12
+
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    size: 19
+                    name: "new_releases"
+                    color: mt.pInk
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: PR.updatesTitle(PluginRepoService.updates.length)
+                    color: mt.pInk
+                    font.family: mt.fontFamily
+                    font.pixelSize: 15
+                    font.weight: Font.ExtraBold
+                }
+
+                SettingChip {
+                    capH: 36
+                    fontSize: 14
+                    label: "Update in About"
+                    icon: "update"
+                    onClicked: card.goAbout()
+                }
             }
         }
 
@@ -191,6 +233,7 @@ SectionCard {
                         width: card.innerWidth
                         pst: slot.pst
                         onOpenRequested: card.toggle(slot.modelData.plugin.id)
+                        onAboutRequested: card.goAbout()
                     }
                 }
 

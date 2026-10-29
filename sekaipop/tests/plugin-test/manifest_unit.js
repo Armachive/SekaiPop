@@ -148,12 +148,14 @@ assert.deepStrictEqual(s.skipped.map(x => x.id), ["Bad Name", "empty", "future"]
 assert.match(s.skipped.find(x => x.id === "empty").error, /no plugin.json/)
 assert.deepStrictEqual(s.skipped.map(x => x.code), ["folder", "missing", "api-new"])
 assert.deepStrictEqual(PM.scan(""), { plugins: [], skipped: [] })
-assert.deepStrictEqual(PM.splitScan("\x1ea\nline1\nline2\n"), [{ folder: "a", text: "line1\nline2\n", files: undefined }], "a manifest keeps its own newlines")
-assert.deepStrictEqual(PM.splitScan("\x1ea\x1fWidget.qml Bar.qml\n{}"), [{ folder: "a", text: "{}", files: "Widget.qml Bar.qml" }], "the file list rides on the folder's line")
+assert.deepStrictEqual(PM.splitScan("\x1ea\nline1\nline2\n"), [{ folder: "a", text: "line1\nline2\n", files: undefined, target: "" }], "a manifest keeps its own newlines")
+assert.deepStrictEqual(PM.splitScan("\x1ea\x1fWidget.qml Bar.qml\n{}"), [{ folder: "a", text: "{}", files: "Widget.qml Bar.qml", target: "" }], "the file list rides on the folder's line")
 const s2 = PM.scan("\x1ebarry\x1fBar.qml Popup.qml\n" + JSON.stringify(Object.assign({}, good, { id: "barry", bar: { label: "B" } }))
     + "\x1enodraw\x1f\n" + JSON.stringify(Object.assign({}, good, { id: "nodraw" })))
 assert.deepStrictEqual(s2.plugins.map(p => [p.id, p.files.popup]), [["barry", true]])
 assert.deepStrictEqual(s2.skipped.map(x => [x.id, x.code]), [["nodraw", "files"]], "a folder with nothing to draw is skipped, with a reason")
+const s3 = PM.scan("\x1elinked\x1fWidget.qml\x1f/data/plugin-repos/o/r/linked\n" + JSON.stringify(Object.assign({}, good, { id: "linked" })))
+assert.strictEqual(s3.plugins[0].target, "/data/plugin-repos/o/r/linked", "where a linked plugin's folder really is rides along")
 
 // ---------- 6. paths ----------
 assert.strictEqual(PM.expandPath("~/x/y", "/home/u", "/p"), "/home/u/x/y")

@@ -264,26 +264,31 @@ function coerce(defaultValue, text) {
 }
 
 // The scan script's output (scripts/state/plugin-state.sh scan): for every plugin folder,
-// a line "\x1e<folder>\x1f<its QML files, space separated>" followed by its plugin.json (or
-// nothing when it has none). A line without "\x1f" (an older script) has no file list.
-// -> [{ folder, text, files }]
-function splitScan(out) {
+// a line "\x1e<folder>\x1f<its QML files, space separated>\x1f<link target>" followed by its
+// plugin.json (or nothing when it has none). A line without "\x1f" (an older script) has no
+// file list; without the second, no target.
+// `keepRoot` keeps a record whose folder is "": a repository's own root, in what
+// plugin-repos.sh prints about a repository (PluginRepos.checkFound).
+// -> [{ folder, text, files, target }]
+function splitScan(out, keepRoot) {
     var recs = []
     var parts = String(out || "").split("\x1e")
     for (var i = 1; i < parts.length; i++) {
         var nl = parts[i].indexOf("\n")
         var head = nl < 0 ? parts[i] : parts[i].slice(0, nl)
         var text = nl < 0 ? "" : parts[i].slice(nl + 1)
-        var us = head.indexOf("\x1f")
-        var folder = us < 0 ? head : head.slice(0, us)
-        var files = us < 0 ? undefined : head.slice(us + 1)
-        if (folder !== "")
-            recs.push({ folder: folder, text: text, files: files })
+        var cols = head.split("\x1f")
+        var folder = cols[0]
+        var files = cols.length > 1 ? cols[1] : undefined
+        // Where the folder really is (a link's target), "" for a real folder or an older scan.
+        var target = cols.length > 2 ? cols[2] : ""
+        if (folder !== "" || (keepRoot === true && cols.length > 1))
+            recs.push({ folder: folder, text: text, files: files, target: target })
     }
     return recs
 }
 
-// scan(out) -> { plugins: [plugin], skipped: [{ id, error, code, field }] }, sorted by id so the shelf
+// scan(out) -> { plugins: [plugin], skipped: [{ id, error, code, field, target }] }, sorted by id so the shelf
 // keeps one order.
 function scan(out) {
     var plugins = []
@@ -293,14 +298,17 @@ function scan(out) {
     for (var i = 0; i < recs.length; i++) {
         var r = recs[i]
         if (r.text.trim() === "") {
-            skipped.push({ id: r.folder, error: "no plugin.json", code: "missing", field: "" })
+            skipped.push({ id: r.folder, error: "no plugin.json", code: "missing", field: "", target: r.target })
             continue
         }
         var p = parse(r.text, r.folder, r.files)
-        if (p.ok)
+        if (p.ok) {
+            // Where its folder really is: which repository it came from (PluginRepos.origin).
+            p.plugin.target = r.target
             plugins.push(p.plugin)
-        else
-            skipped.push({ id: p.id, error: p.error, code: p.code, field: p.field })
+        } else {
+            skipped.push({ id: p.id, error: p.error, code: p.code, field: p.field, target: r.target })
+        }
     }
     return { plugins: plugins, skipped: skipped }
 }
