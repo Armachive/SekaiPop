@@ -1142,6 +1142,8 @@ Scope {
     // open the old Overview + launcher board; it opens the Apps screen now. appid
     // defaults to "quickshell" for every Quickshell process, and registering the same
     // appid+name twice crashes the second one, so only one shell may run at a time.
+    // onReleased alone decides nothing: the bind is a release bind (`release = true`),
+    // and Hyprland is what drops it when Super was held for another key (issue #99).
     GlobalShortcut {
         appid: "quickshell"
         name: "searchToggleRelease"

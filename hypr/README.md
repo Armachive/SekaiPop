@@ -69,6 +69,11 @@ binds in `custom/keybinds.lua`.
 - Removed (nothing in sekaipop uses them): fuzzel / wlogout / hyprshot / geoclue / ollama scripts,
   hyprlock.conf and its colours (the shell has its own lockscreen), `*.new` leftovers, the empty
   `workspaces.conf`, the hyprlang `monitors.conf`, II's `colors.lua`, `shellOverrides`, `custom/scripts`.
+- The bare Super tap that opens Apps is a release bind (`release = true`), and so is a tap the
+  keybinds panel moves to another modifier (`bindrd` in hyprland.conf). Hyprland drops a release
+  bind when another bind ran while the key was held, which is what keeps SUPER + N from also opening
+  Apps. Since Hyprland 0.57 a plain `global` bind sends its release whatever happened in between, so
+  a tap bound without the flag opens Apps after every Super combination (issue #99).
 - Not bound (no matching IPC): II's sidebar / OSK-overlay / bar toggle / media-controls / panel-family
   / session menu, fullscreen recording, AI summary. Commented examples for the other IPC targets
   are at the end of `keybinds.lua`.

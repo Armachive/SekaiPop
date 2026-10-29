@@ -21,8 +21,11 @@ end
 
 --##! Shell
 -- A bare Super tap: the shell's one GlobalShortcut (Apps screen of the phone).
-hl.bind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell: Apps" })
-hl.bind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"), { description = "Shell (more): Apps" })
+-- release = true is what makes it a tap: Hyprland skips a release bind when another bind
+-- ran while Super was held. Without it, Hyprland 0.57 sends the shortcut's release after
+-- SUPER + N, SUPER + W and every other Super bind, and each of them opened Apps too (issue #99).
+hl.bind("SUPER + SUPER_L", hl.dsp.global("quickshell:searchToggleRelease"), { release = true, description = "Shell: Apps" })
+hl.bind("SUPER + SUPER_R", hl.dsp.global("quickshell:searchToggleRelease"), { release = true, description = "Shell (more): Apps" })
 
 shell("SUPER + A", "launcherphone toggle", "Toggle apps")
 shell("SUPER + N", "quickpanel toggle", "Toggle quick panel")

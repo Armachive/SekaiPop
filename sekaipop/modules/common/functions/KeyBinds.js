@@ -75,9 +75,16 @@ function showKey(key) {
     return k.length === 1 ? k.toUpperCase() : k
 }
 
+var TAP_KEY = /^(super|alt|control|ctrl|shift)_[lr]$/i
+
+// A modifier key bound on its own (SUPER + SUPER_L): a tap.
+function isTap(combo) {
+    return TAP_KEY.test(String(combo.key))
+}
+
 // Keycaps for a combination: [{ k: "SUPER", mod: true }, { k: "E", mod: false }]
 function caps(combo) {
-    var tap = /^(super|alt|control|ctrl|shift)_[lr]$/i.exec(String(combo.key))
+    var tap = TAP_KEY.exec(String(combo.key))
     if (tap) {
         var n = tap[1].toUpperCase()
         return [{ k: (n === "CONTROL" ? "CTRL" : n) + " tap", mod: true }]
@@ -358,7 +365,10 @@ function confMods(c) {
 function luaLine(op) {
     if (op.op === "unbind")
         return "pcall(hl.unbind, " + luaStr(luaCombo(op.combo)) + ")"
-    var opts = "{ description = " + luaStr(op.desc) + (op.locked ? ", locked = true" : "") + " }"
+    // A tap is a release bind, so Hyprland drops it when the modifier was held for another
+    // bind (issue #99); keybinds.lua binds the shipped Super tap the same way.
+    var opts = "{ " + (isTap(op.combo) ? "release = true, " : "") + "description = " + luaStr(op.desc)
+        + (op.locked ? ", locked = true" : "") + " }"
     var act = op.global ? "hl.dsp.global(" + luaStr(op.global) + ")" : "hl.dsp.exec_cmd(" + luaStr(op.cmd) + ")"
     return "pcall(hl.bind, " + luaStr(luaCombo(op.combo)) + ", " + act + ", " + opts + ")"
 }
@@ -373,7 +383,7 @@ function confLine(op) {
     if (op.op === "unbind")
         return "unbind = " + confMods(op.combo) + ", " + op.combo.key
     var tail = op.global ? ", global, " + confValue(op.global) : ", exec, " + confValue(op.cmd)
-    return "bind" + (op.locked ? "l" : "") + "d = " + confMods(op.combo) + ", " + op.combo.key + ", "
+    return "bind" + (op.locked ? "l" : "") + (isTap(op.combo) ? "r" : "") + "d = " + confMods(op.combo) + ", " + op.combo.key + ", "
         + String(op.desc).replace(/,/g, " ") + tail
 }
 
