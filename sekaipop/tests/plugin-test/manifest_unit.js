@@ -17,8 +17,9 @@ let r = parse(good)
 assert.strictEqual(r.ok, true)
 assert.deepStrictEqual(r.plugin, {
     id: "hello", name: "Hello", version: "1.0.0", api: 1, description: "", icon: "extension",
-    frame: true, cloneable: true, settings: {}, secrets: {}, settingsInfo: {}, groups: []
-})
+    frame: true, cloneable: true, settings: {}, secrets: {}, settingsInfo: {}, groups: [],
+    bar: null, files: { widget: true, bar: false, popup: false, service: false }
+}, "no file list (an older scan) reads as a desktop widget alone")
 r = parse(Object.assign({}, good, { icon: "waving_hand", frame: false, cloneable: false, description: "d", name: "  Hi  " }))
 assert.deepStrictEqual([r.plugin.icon, r.plugin.frame, r.plugin.cloneable, r.plugin.description, r.plugin.name],
     ["waving_hand", false, false, "d", "Hi"])
@@ -86,6 +87,31 @@ assert.deepStrictEqual([r.ok, r.plugin.settingsInfo, r.plugin.groups], [true, { 
 r = parse(Object.assign({}, good, { settingsInfo: [1, 2] }))
 assert.deepStrictEqual([r.ok, r.plugin.settingsInfo], [true, {}])
 
+// ---------- 2b. a bar entry, and the files that go with it ----------
+const withFiles = (m, files) => PM.parse(JSON.stringify(m), "hello", files)
+r = withFiles(Object.assign({}, good, { bar: { label: " Tailscale ", icon: "hub" } }), "Bar.qml Popup.qml Service.qml")
+assert.strictEqual(r.ok, true, r.error)
+assert.deepStrictEqual(r.plugin.bar, { label: "Tailscale", icon: "hub" })
+assert.deepStrictEqual(r.plugin.files, { widget: false, bar: true, popup: true, service: true }, "a bar-only plugin needs no Widget.qml")
+r = withFiles(Object.assign({}, good, { icon: "dns", bar: {} }), "Widget.qml Bar.qml")
+assert.deepStrictEqual([r.ok, r.plugin.bar], [true, { label: "Hello", icon: "dns" }], "the bar's label and icon fall back to the plugin's name and icon")
+assert.strictEqual(r.plugin.files.popup, false, "no Popup.qml: an entry without a popup")
+r = withFiles(good, "Widget.qml Popup.qml")
+assert.deepStrictEqual([r.ok, r.plugin.files.popup], [true, false], "Popup.qml without a bar entry is ignored")
+r = withFiles(good, "Widget.qml Service.qml")
+assert.deepStrictEqual([r.ok, r.plugin.files.service], [true, true], "a widget can have a service too")
+const fileErr = (m, files) => { const x = withFiles(m, files); assert.strictEqual(x.ok, false); return [x.code, x.error] }
+let fe = fileErr(Object.assign({}, good, { bar: { label: "x" } }), "Widget.qml")
+assert.strictEqual(fe[0], "files")
+assert.match(fe[1], /no Bar\.qml/)
+fe = fileErr(good, "Widget.qml Bar.qml")
+assert.strictEqual(fe[0], "files")
+assert.match(fe[1], /has no `bar`/, "a Bar.qml the manifest does not declare is a mistake, not ignored")
+fe = fileErr(good, "")
+assert.match(fe[1], /nothing to draw/)
+assert.deepStrictEqual(code(Object.assign({}, good, { bar: "yes" })), ["field", "bar"])
+assert.deepStrictEqual(PM.readFiles("Widget.qml  Bar.qml"), { widget: true, bar: true, popup: false, service: false })
+
 // ---------- 3. saved settings never hand the widget what it did not ask for ----------
 const defs = { greeting: "Hi", n: 3, on: false }
 assert.deepStrictEqual(PM.mergeSettings(defs, null), defs)
@@ -102,10 +128,12 @@ assert.strictEqual(PM.coerce(true, "maybe"), undefined)
 assert.strictEqual(PM.coerce(false, true), true, "the widget's own setSetting passes real booleans")
 
 // ---------- 4. saved state ----------
-assert.deepStrictEqual(PM.readState("", defs), { x: -1, y: -1, scale: 0, screen: "", shown: false, settings: defs }, "nothing saved: never placed, off")
+assert.deepStrictEqual(PM.readState("", defs), { x: -1, y: -1, scale: 0, screen: "", shown: false, bar: false, settings: defs }, "nothing saved: never placed, off, not on the bar")
 assert.deepStrictEqual(PM.readState("garbage", defs).shown, false)
 assert.deepStrictEqual(PM.readState(JSON.stringify({ x: 10, y: 20, scale: 1.25, screen: "DP-1", shown: true, settings: { n: 9 } }), defs),
-    { x: 10, y: 20, scale: 1.25, screen: "DP-1", shown: true, settings: { greeting: "Hi", n: 9, on: false } })
+    { x: 10, y: 20, scale: 1.25, screen: "DP-1", shown: true, bar: false, settings: { greeting: "Hi", n: 9, on: false } })
+assert.strictEqual(PM.readState(JSON.stringify({ bar: true }), defs).bar, true, "the bar entry's on / off is remembered")
+assert.strictEqual(PM.readState(JSON.stringify({ bar: "on" }), defs).bar, false)
 assert.strictEqual(PM.readState(JSON.stringify({ shown: "yes" }), defs).shown, false, "only a real true switches it on")
 
 // ---------- 5. the scan script's output ----------
@@ -120,7 +148,12 @@ assert.deepStrictEqual(s.skipped.map(x => x.id), ["Bad Name", "empty", "future"]
 assert.match(s.skipped.find(x => x.id === "empty").error, /no plugin.json/)
 assert.deepStrictEqual(s.skipped.map(x => x.code), ["folder", "missing", "api-new"])
 assert.deepStrictEqual(PM.scan(""), { plugins: [], skipped: [] })
-assert.deepStrictEqual(PM.splitScan("\x1ea\nline1\nline2\n"), [{ folder: "a", text: "line1\nline2\n" }], "a manifest keeps its own newlines")
+assert.deepStrictEqual(PM.splitScan("\x1ea\nline1\nline2\n"), [{ folder: "a", text: "line1\nline2\n", files: undefined }], "a manifest keeps its own newlines")
+assert.deepStrictEqual(PM.splitScan("\x1ea\x1fWidget.qml Bar.qml\n{}"), [{ folder: "a", text: "{}", files: "Widget.qml Bar.qml" }], "the file list rides on the folder's line")
+const s2 = PM.scan("\x1ebarry\x1fBar.qml Popup.qml\n" + JSON.stringify(Object.assign({}, good, { id: "barry", bar: { label: "B" } }))
+    + "\x1enodraw\x1f\n" + JSON.stringify(Object.assign({}, good, { id: "nodraw" })))
+assert.deepStrictEqual(s2.plugins.map(p => [p.id, p.files.popup]), [["barry", true]])
+assert.deepStrictEqual(s2.skipped.map(x => [x.id, x.code]), [["nodraw", "files"]], "a folder with nothing to draw is skipped, with a reason")
 
 // ---------- 6. paths ----------
 assert.strictEqual(PM.expandPath("~/x/y", "/home/u", "/p"), "/home/u/x/y")
@@ -138,6 +171,18 @@ assert.ok(/required property var host/.test(widget), "the example declares `requ
 assert.ok(!/^import\s+qs\./m.test(widget), "the example imports nothing of the shell's own (a plugin can't)")
 for (const k of Object.keys(r.plugin.settings))
     assert.ok(widget.includes("settings." + k) || widget.includes('"' + k + '"'), "the example uses its setting " + k)
+
+// the bar entry example: a manifest with `bar`, and its three files keeping to the interface
+const exBar = path.join(__dirname, "..", "..", "..", "examples", "plugins", "hello-bar")
+const exFiles = fs.readdirSync(exBar).filter(f => f.endsWith(".qml")).join(" ")
+r = PM.parse(fs.readFileSync(path.join(exBar, "plugin.json"), "utf8"), "hello-bar", exFiles)
+assert.strictEqual(r.ok, true, "examples/plugins/hello-bar/plugin.json: " + r.error)
+assert.deepStrictEqual(r.plugin.files, { widget: false, bar: true, popup: true, service: true }, "hello-bar shows a bar entry, a popup and a service")
+for (const f of ["Bar.qml", "Popup.qml", "Service.qml"]) {
+    const src = fs.readFileSync(path.join(exBar, f), "utf8")
+    assert.ok(/required property var host/.test(src), "hello-bar/" + f + " declares `required property var host`")
+    assert.ok(!/^import\s+qs\./m.test(src), "hello-bar/" + f + " imports nothing of the shell's own")
+}
 
 // ---------- 8. a plugin goes everywhere a widget goes ----------
 const edit = read("services/EditMode.qml")
@@ -162,6 +207,51 @@ for (const name of ["apiVersion", "id", "name", "version", "dir", "theme", "sett
     assert.ok(new RegExp("(property \\w+ " + name + ":|function " + name + "\\()").test(hostBlock), "host." + name + " is on the host object")
     assert.ok(doc.includes("`" + name + "`") || doc.includes("`" + name + "("), "docs/PLUGINS.md documents host." + name)
 }
+// the bar entry's and the popup's host objects, and their own parts
+const barHostSrc = read("modules/sekai/bar/PluginBarItem.qml")
+const popupHostSrc = read("modules/sekai/bar/PluginPopup.qml")
+const blockOf = src => src.slice(src.indexOf("id: hostApi"))
+for (const [label, src] of [["bar entry", barHostSrc], ["popup", popupHostSrc]]) {
+    for (const name of ["apiVersion", "id", "name", "version", "dir", "theme", "settings", "secrets", "screenName", "scale", "working", "service", "wanted", "path", "setSetting", "reloadSecrets"])
+        assert.ok(new RegExp("(property \\w+ " + name + ":|function " + name + "\\()").test(blockOf(src)), "the " + label + "'s host has " + name)
+    assert.ok(/setSource\(slot\.url, \{ host: hostApi \}\)/.test(src), "the " + label + " is handed `host` as it is made")
+}
+for (const name of ["service", "wanted"]) {
+    assert.ok(new RegExp("property \\w+ " + name + ":").test(hostBlock), "the widget's host has " + name)
+    assert.ok(doc.includes("`" + name + "`"), "docs/PLUGINS.md documents host." + name)
+}
+for (const name of ["vertical", "edge", "capsule", "ink", "inkSub", "popupOpen", "hasPopup"]) {
+    assert.ok(new RegExp("property \\w+ " + name + ":").test(barHostSrc.slice(barHostSrc.indexOf("property QtObject bar:"))), "host.bar." + name + " is on the bar entry's host")
+    assert.ok(doc.includes("`bar." + name + "`"), "docs/PLUGINS.md documents host.bar." + name)
+}
+for (const name of ["open", "maxHeight", "close"]) {
+    assert.ok(new RegExp("(property \\w+ " + name + ":|function " + name + "\\()").test(popupHostSrc.slice(popupHostSrc.indexOf("property QtObject popup:"))), "host.popup." + name + " is on the popup's host")
+    assert.ok(doc.includes("`popup." + name), "docs/PLUGINS.md documents host.popup." + name)
+}
+const svc = read("services/PluginState.qml")
+const svcHost = svc.slice(svc.indexOf("property QtObject serviceHost"))
+for (const name of ["apiVersion", "id", "settings", "secrets", "working", "wanted", "path", "setSetting", "reloadSecrets"])
+    assert.ok(new RegExp("(property \\w+ " + name + ":|function " + name + "\\()").test(svcHost), "Service.qml's host has " + name)
+
+// ---------- 9. a plugin's bar entry goes everywhere a module goes ----------
+const barLayout = read("services/BarLayoutService.qml")
+assert.ok(/readonly property var modules: root\.builtinModules\.concat\(PluginService\.barModules\)/.test(barLayout), "the bar's modules include the plugins'")
+assert.ok(!/SettingsService\.(set|flag)\("bar\." \+ (id|m\.id)/.test(barLayout.replace(/function (masterOn|setMaster)\([\s\S]*?\n    \}\n/g, "")),
+    "BarLayoutService switches a module only through masterOn / setMaster, so a plugin's switch is its own")
+const statusBar = read("modules/sekai/bar/Status_Bar.qml")
+assert.ok(/model: status_Bar\.pluginEntries/.test(statusBar) && /delegate: PluginBarItem/.test(statusBar), "Status_Bar makes an entry per plugin")
+assert.ok(/status_Bar\.pluginItems\[id\]/.test(statusBar.slice(statusBar.indexOf("function itemsOf("))), "itemsOf() knows the plugins' entries")
+const barQml = read("modules/sekai/bar/Bar.qml")
+assert.ok(/delegate: PluginPopup/.test(barQml), "Bar.qml makes the plugins' popups")
+// every function that opens a built-in popup closes a plugin's (one popup at a time)
+for (const fn of ["toggleMediaPopup", "openEqPopup", "toggleDiscordPopup", "toggleBatteryPopup", "toggleResourcePopup", "toggleCalendarPopup", "toggleWeatherPopup", "toggleUtilPopup"]) {
+    const body = barQml.slice(barQml.indexOf("function " + fn + "("))
+    assert.ok(body.slice(0, body.indexOf("\n    }\n")).includes('pluginPopup = ""'), "Bar." + fn + "() closes a plugin's popup")
+}
+assert.ok(/\|\| win\.pluginPopup !== ""/.test(barQml), "an open plugin popup keeps an auto-hiding bar out")
+assert.ok(/function onPopupWanted\(key\)/.test(barQml) && /signal popupWanted\(string key\)/.test(read("services/PluginService.qml")),
+    "`ipc call plugins popup <id>` reaches the bar")
+
 // every theme name the doc promises exists in the theme
 const themeSet = read("modules/common/ThemeSet.qml")
 const promised = (doc.match(/<!-- theme-names -->([\s\S]*?)<!-- \/theme-names -->/) || [, ""])[1].match(/`(\w+)`/g) || []

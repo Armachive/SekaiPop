@@ -149,7 +149,7 @@ Item {
 
                 Flow {
                     id: meta
-                    width: parent.width - placeChip.width - 22
+                    width: parent.width - (placeChip.visible ? placeChip.width + 22 : 0)
                     spacing: 22
 
                     Row {
@@ -176,7 +176,18 @@ Item {
                         height: 32
                         spacing: 8
 
+                        // A plugin with a bar entry (docs/PLUGINS.md): whether it is on the bar.
                         PluginBadge {
+                            readonly property bool inBar: !!root.pst && root.pst.barShown
+                            visible: !!root.plugin && !!root.plugin.bar
+                            anchors.verticalCenter: parent.verticalCenter
+                            kind: inBar ? "on" : "mute"
+                            icon: inBar ? "check" : ""
+                            text: inBar ? "In the bar" : "Not in the bar"
+                        }
+
+                        PluginBadge {
+                            visible: !root.plugin || root.plugin.files.widget
                             anchors.verticalCenter: parent.verticalCenter
                             kind: root.monitors.length > 0 ? "on" : "mute"
                             icon: root.monitors.length > 0 ? "check" : ""
@@ -198,6 +209,8 @@ Item {
 
                 SettingChip {
                     id: placeChip
+                    // Only a plugin with a desktop widget has something to place.
+                    visible: !root.plugin || root.plugin.files.widget
                     x: parent.width - width
                     capH: 36
                     fontSize: 14

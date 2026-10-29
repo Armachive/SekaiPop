@@ -142,6 +142,15 @@ Item {
             spacing: 8
 
             PluginBadge {
+                readonly property bool inBar: !!root.pst && root.pst.barShown
+                visible: !!root.pst && !!root.pst.plugin.bar
+                kind: inBar ? "on" : "mute"
+                icon: inBar ? "check" : ""
+                text: inBar ? "In the bar" : "Not in the bar · turn it on in Settings > Bar"
+            }
+
+            PluginBadge {
+                visible: !root.pst || root.pst.plugin.files.widget
                 kind: root.monitors.length > 0 ? "on" : "mute"
                 icon: root.monitors.length > 0 ? "check" : ""
                 text: root.monitors.length > 0 ? "On the desktop" : "Not on the desktop · add it in Edit Desktop"

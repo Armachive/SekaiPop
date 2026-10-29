@@ -125,6 +125,53 @@ SettingsPage {
             }
         }
 
+        // The plugins' bar entries (docs/PLUGINS.md): one more module each, marked as a
+        // plugin, with a key to its own settings (Settings > Desktop > Plugins). Their switch
+        // is the plugin's (BarLayoutService.masterOn), off until turned on here.
+        Repeater {
+            model: PluginService.barModules
+
+            delegate: Item {
+                id: plugTile
+                required property var modelData
+
+                readonly property bool on: BarLayoutService.masterOn(modelData.id)
+
+                width: toggle.implicitWidth
+                height: toggle.implicitHeight
+
+                SettingToggle {
+                    id: toggle
+                    icon: plugTile.modelData.icon
+                    label: plugTile.modelData.label
+                    checked: plugTile.on
+                    detail: (plugTile.on ? "ON" : "OFF") + " · PLUGIN"
+                    onToggled: BarLayoutService.setMaster(plugTile.modelData.id, !plugTile.on)
+                }
+
+                // Sits over the tile's corner, as a separate key: the tile's own click stays
+                // the on / off switch.
+                PluginBadge {
+                    id: plugKey
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.rightMargin: -4
+                    anchors.topMargin: -10
+                    kind: "cap"
+                    icon: "settings"
+                    text: "Settings"
+                    scale: plugArea.pressed ? 0.94 : 1
+
+                    MouseArea {
+                        id: plugArea
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: PluginService.askSettings(plugTile.modelData.id, page.screenName)
+                    }
+                }
+            }
+        }
+
         SettingSlider {
             visible: SettingsService.flag("bar.workspaces")
             width: page.halfWidth

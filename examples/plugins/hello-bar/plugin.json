@@ -1,0 +1,17 @@
+{
+    "id": "hello-bar",
+    "name": "Hello Bar",
+    "version": "1.0.0",
+    "api": 1,
+    "description": "The smallest bar entry: how long this computer has been up, and a popup with more.",
+    "icon": "timer",
+    "bar": { "label": "Uptime", "icon": "timer" },
+    "settings": {
+        "showLoad": true,
+        "checkSeconds": 5
+    },
+    "settingsInfo": {
+        "showLoad": { "label": "Load in the popup", "description": "The load averages under the uptime." },
+        "checkSeconds": { "label": "Check every", "description": "While the popup is open. The bar alone checks once a minute.", "min": 1, "max": 30, "unit": "seconds" }
+    }
+}

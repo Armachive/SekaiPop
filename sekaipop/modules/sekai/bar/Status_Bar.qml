@@ -185,6 +185,20 @@ Item {
     readonly property Item utilToggle: utilKeys.toggleItem
     readonly property Item utilSource: utilKeys
 
+    // Plugins' entries (PluginBarItem.qml), fed by Bar.qml: [{ key: "plugin:<id>", st }],
+    // one per plugin with `bar` in its manifest, its PluginState as plain data. Where each
+    // sits comes from `layout` like any module; whether it shows, from `modules`.
+    property var pluginEntries: []
+    // The key of the plugin whose popup is open ("" = none), from Bar.qml.
+    property string pluginPopupOpen: ""
+    // key -> its PluginBarItem, as the Instantiator below makes them.
+    property var pluginItems: ({})
+
+    // The entry a plugin's popup grows out of (Bar.qml), or null.
+    function pluginToggle(key) {
+        return status_Bar.pluginItems[key] ?? null
+    }
+
     // This monitor's scale (1 = design size), fed by Bar.qml (the tray button
     // snaps its arrow to whole device pixels with it).
     property real scaleValue: 1
@@ -405,7 +419,8 @@ Item {
         case "date": return [dateIndicator]
         case "clock": return [clockButton]
         }
-        return []
+        const p = status_Bar.pluginItems[id]
+        return p ? [p] : []
     }
 
     // How wide an item is as the layout sees it. (The layout's own result is
@@ -466,6 +481,8 @@ Item {
     signal discordDeafenRequested()
     signal discordAuthorizeRequested()
     signal discordPanelRequested()
+    // A plugin's entry was clicked (the left button): open or close its popup.
+    signal pluginClicked(string key)
 
     // The pale ring between the navy outline and the white fill —
     // sampled straight from the old status_Bar_BG.png export (it's
@@ -1076,6 +1093,42 @@ Item {
             iconName: status_Bar.weatherIconName
             barPosition: status_Bar.barPosition
             onClicked: status_Bar.weatherClicked()
+        }
+
+        // The plugins' entries: one per plugin with a bar entry, each placed in its zone and
+        // slot like the pills above. (An Instantiator, not a Repeater: each entry is parented
+        // to its own zone, which a Repeater's delegates must not be.)
+        Instantiator {
+            model: status_Bar.pluginEntries
+
+            delegate: PluginBarItem {
+                required property var modelData
+                key: modelData.key
+                st: modelData.st
+                parent: status_Bar.zoneItem(modelData.key)
+                Layout.row: status_Bar.vertical ? status_Bar.slotOf(modelData.key) : 0
+                Layout.column: status_Bar.vertical ? 0 : status_Bar.slotOf(modelData.key)
+                Layout.alignment: status_Bar.crossAlign
+                transform: Translate { y: status_Bar.liftY }
+                enabledHere: status_Bar.shows(modelData.key) && !status_Bar.tighterV
+                vertical: status_Bar.vertical
+                barPosition: status_Bar.barPosition
+                popupOpen: status_Bar.pluginPopupOpen === modelData.key
+                onClicked: status_Bar.pluginClicked(modelData.key)
+            }
+
+            onObjectAdded: (index, object) => {
+                const m = Object.assign({}, status_Bar.pluginItems)
+                m[object.key] = object
+                status_Bar.pluginItems = m
+            }
+
+            onObjectRemoved: (index, object) => {
+                const m = Object.assign({}, status_Bar.pluginItems)
+                if (m[object.key] === object)
+                    delete m[object.key]
+                status_Bar.pluginItems = m
+            }
         }
 
         // Today's date; click opens the calendar dropdown

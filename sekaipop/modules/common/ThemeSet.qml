@@ -127,6 +127,11 @@ QtObject {
         : (dark ? Qt.color(colBorder) : Qt.tint(Qt.color("#ffffff"), Qt.rgba(colBorder.r, colBorder.g, colBorder.b, lightChipAlpha)))
     readonly property color chipInk: dark ? textWhite : Qt.color(colBorder)
 
+    // A status that wants a look but is not an error: the Updates badge nudging, a plugin's
+    // "key ends soon". The same amber in every palette and mode, with colBorder ink on it,
+    // so it means one thing everywhere. Promised to plugins (docs/PLUGINS.md).
+    readonly property color warnFill: "#ffb74d"
+
     // The tint behind dialogs / the power menu: the palette's dark tone in
     // Dark and Darker, a pale wash in Light.
     readonly property color scrim: dark

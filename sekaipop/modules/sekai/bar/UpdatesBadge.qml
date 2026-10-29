@@ -63,7 +63,7 @@ Item {
         cornerRadius: mt.radiusBadge
         ringWidth: 8
         capKeepsFill: root.nudging || root.count > 0   // Capsule bar: coloured only while there is news
-        fillColor: root.nudging ? "#ffb74d" : (root.count > 0 ? mt.accentMint : mt.surface)
+        fillColor: root.nudging ? mt.warnFill : (root.count > 0 ? mt.accentMint : mt.surface)
         pressed: area.pressed
         Behavior on fillColor {
             ColorAnimation { duration: 220 }
