@@ -2,49 +2,59 @@ SEKAIPOP QUICK GUIDE  (Debian 13 port, github.com/Armachive/SekaiPop)
 =====================================================================
 Super = the Windows key.  Press Super + /  any time for the full list on screen.
 
-THE BASICS
-  Super (tap) or Super + A    Apps launcher (the phone)
+THE BASICS   (your niri + DMS keys, carried over; Super + / shows everything)
+  Super (tap), Super + Space  Apps launcher (the phone)
   Super + N                   Quick Panel: Wi-Fi, Bluetooth, sound, brightness, notifications
-  Super + I                   Settings (the phone turned sideways)
+  Super + I  or  Super + ,    Settings (the phone turned sideways)
   Super + Tab                 Overview of windows and workspaces
-  Super + Escape              Power menu (sleep, reboot, shut down, log out)
-  Super + L                   Lock screen
-  Super + Return              Terminal (kitty)
-  Super + E / W / C / X       File manager / Browser / Code editor / Text editor
-  Ctrl + Shift + Escape       Task manager
+  Super + X                   Power menu (sleep, reboot, shut down, log out)
+  Super + Alt + L             Lock screen
+  Super + T  or  Super + Return   Terminal (kitty)
+  Super + B / E / O / D / C   Vivaldi / Dolphin / Obsidian / Dopamine / Code editor
+  Super + M                   Task manager           Super + H    Hide/show the bar
+  Super + Shift + N           Sticky notes           Super + W    Wallpaper picker
+  Super + Escape              Pass every key to the window (VMs); again to come back
   Ctrl + Super + R            Restart the shell (if the bar ever vanishes)
 
-WINDOWS AND WORKSPACES
+WINDOWS AND WORKSPACES   (niri-style scrolling columns)
   Super + Q                   Close window
-  Super + 1 .. 0              Go to workspace 1..10      (Super + Alt + 1..0: move window there)
-  Ctrl + Super + Left/Right   Previous / next workspace
-  Super + Arrows              Move focus                 (+ Shift: move window)
-  Super + Alt + Space         Float / tile the window
-  Super + P                   Pin window on top
-  Ctrl + Super + S            Scratchpad workspace       (Super + Alt + S: send window there)
+  Super + Arrows / J K L      Focus column / window       (+ Shift: move column / window)
+  Super + [  /  Super + ]     Pull window into the column left / right   Ctrl+Super+Shift+.  out again
+  Super + R  /  Super + - =   Cycle preset column width  /  narrower, wider
+  Super + Shift + - =         Window shorter / taller
+  Super + F / Shift + F       Maximize column / Fullscreen
+  Super + G                   Float / tile               Super + Y    Tabbed column
+  Super + Home / End          Scroll to the first / last columns
+  Super + 1 .. 9              Go to workspace            (+ Shift: move column there)
+  Super + PgUp/PgDn, wheel    Previous / next workspace  (Ctrl + Super + Up/Down: move column)
+  Ctrl + Super + Arrows       Focus monitor              (+ Shift: move column to monitor)
   Super + left drag           Move window        Super + right drag    Resize window
-  Super + F  /  Super + D     Fullscreen  /  Maximize
 
 LOOK
   Ctrl + Super + T            Wallpaper picker          Ctrl + Super + Alt + T   Random wallpaper
   Ctrl + Super + Shift + T    Theme picker              Ctrl + Super + Shift + D Dark mode on/off
-  Super + Shift + E           Edit Desktop: add, move, resize, remove widgets, bar, dock
+  Super + Alt + E             Edit Desktop: add, move, resize, remove widgets, bar, dock
 
 TOOLS
-  Super + Shift + S           Screenshot a region       Super + Shift + R   Record a region
+  PrtSc / Ctrl+PrtSc / Alt+PrtSc   Screenshot: pick a region / whole screen / this window
+  Super + Shift + S           Screenshot a region       Super + Alt + R     Record a region
   Super + Shift + X           OCR a region to clipboard Super + Shift + A   Google Lens
   Super + V  /  Super + .     Clipboard history  /  Emoji picker
-  Super + M                   Equalizer (Sekai Pad)     Super + G           Game mode
-  Super + K                   On-screen keyboard        Super + Shift + F   Focus mode
+  Ctrl + Super + M            Equalizer (Sekai Pad)     Super + Alt + G     Game mode
+  Super + Alt + K             On-screen keyboard        Ctrl+Super+Shift+F  Focus mode
+  Super + Alt + E             Edit Desktop              Super + Alt + - =   Zoom out / in
   Volume / brightness keys    Work as usual, with an on-screen display
 
 HOW TO CUSTOMIZE  (answer key)
   Keybinds ............ Settings > Hyprland > Keybinds (click an action, press new keys).
-                        Or add your own in ~/.config/hypr/custom/keybinds.lua (never overwritten).
+                        The niri/DMS translation lives in ~/.config/hypr/custom/keybinds.lua
+                        (yours to edit, never overwritten; source: ~/SekaiPop/hypr/niri-profile/).
+  Layout .............. Scrolling (niri-style) is on. Settings > Hyprland > Layout switches to
+                        Dwindle or Master and tunes column widths.
   Theme / colours ..... Super + Shift + E > THEME tab. "Wallpaper" theme takes colours from the
                         wallpaper (matugen). Light / Dark / Darker per theme.
   Bar and dock ........ Settings > Bar (modules on/off, position, style). Edit Desktop > BAR / DOCK.
-  Widgets ............. Super + Shift + E: left click adds, drag moves, right click removes.
+  Widgets ............. Super + Alt + E: left click adds, drag moves, right click removes.
   Wallpapers .......... Ctrl + Super + T. Folder: Settings > General. Also Wallhaven search inside.
   Monitors ............ Settings > Hyprland > Displays (drag screens, pick resolution and scale).
   Idle / sleep ........ Settings > General > Idle & sleep (lock 5 min, screen off 10, sleep 15).

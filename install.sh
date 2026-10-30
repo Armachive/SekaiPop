@@ -19,6 +19,8 @@
 #                       skip   = do not touch Hyprland at all
 #   --no-deps           do not install packages / services (only copy files)
 #   --no-session        do not add the "SekaiPop" entry to the login screen
+#   --niri-profile      niri-style scrolling layout, niri + DMS keybinds and window rules, copied to
+#                       ~/.config/hypr/custom/ (replaces what is there; see hypr/niri-profile/README.md)
 #   --lite              Lite profile: compositor blur / shadows / dimming off and the shell's Low-end
 #                       mode on (integrated GPUs, laptops). Undo: rm ~/.config/sekaipop/lite
 #   --with-tests        also copy the developer tests folder
@@ -31,7 +33,7 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-REPLACED=0; DRY=0; YES=0; RICE=""; HYPR=auto; NODEPS=0; WITH_TESTS=0; RESTORE=0; SESSION=1; LITE=0; DEPS_ARGS=()
+REPLACED=0; DRY=0; YES=0; RICE=""; HYPR=auto; NODEPS=0; WITH_TESTS=0; RESTORE=0; SESSION=1; LITE=0; NIRI=0; DEPS_ARGS=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY=1 ;;
@@ -41,9 +43,10 @@ while [ $# -gt 0 ]; do
         --no-deps) NODEPS=1 ;;
         --no-session) SESSION=0 ;;
         --lite) LITE=1 ;;
+        --niri-profile) NIRI=1 ;;
         --with-tests) WITH_TESTS=1 ;;
         --restore) RESTORE=1 ;;
-        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
         --) shift; DEPS_ARGS=("$@"); break ;;
         *) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
     esac
@@ -391,6 +394,23 @@ case "$HYPR" in
     fi
     ;;
 esac
+
+# --niri-profile: the niri + DMS translation (hypr/niri-profile/README.md) as the custom/ files.
+if [ "$NIRI" = 1 ] && [ "$HYPR" != skip ]; then
+    step "Niri profile"
+    if [ -d "$HERE/hypr/niri-profile" ]; then
+        for f in keybinds general rules; do
+            if [ -s "$HYPR_DEST/custom/$f.lua" ] && ! grep -qs 'niri-profile' "$HYPR_DEST/custom/$f.lua"; then
+                run cp "$HYPR_DEST/custom/$f.lua" "$HYPR_DEST/custom/$f.lua.before-niri"
+                info "your custom/$f.lua is kept as custom/$f.lua.before-niri"
+            fi
+            run cp "$HERE/hypr/niri-profile/$f.lua" "$HYPR_DEST/custom/$f.lua"
+        done
+        [ "$DRY" = 1 ] || ok "scrolling layout, niri + DMS keybinds and rules in $HYPR_DEST/custom/"
+    else
+        warn "hypr/niri-profile is missing: nothing copied"
+    fi
+fi
 
 # A one-page guide (keybinds, how to customize, where things live) next to the home folder.
 [ -f "$HERE/docs/GUIDE.txt" ] && { run cp "$HERE/docs/GUIDE.txt" "$HOME/SekaiPop-Guide.txt"; [ "$DRY" = 1 ] || ok "guide: ~/SekaiPop-Guide.txt"; }
