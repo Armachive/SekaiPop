@@ -452,6 +452,16 @@ fi
 
 have xdg-user-dirs-update && run xdg-user-dirs-update
 
+# blueman is wanted for blueman-manager (the Bluetooth panel's "Advanced" button), but the package
+# also autostarts blueman-applet in every desktop session. The shell has its own Bluetooth
+# controls, and so do the other desktops this may sit beside (DMS); the applet only adds a tray
+# icon, which draws as a blank square under icon themes that lack blueman-tray. Switch its
+# autostart off for this user only (an override in ~/.config/autostart; the package is untouched).
+if [ -f /etc/xdg/autostart/blueman.desktop ] && [ ! -e "$HOME/.config/autostart/blueman.desktop" ]; then
+    info "blueman-applet autostart switched off for this user (the Bluetooth panel does its job)"
+    run_sh 'mkdir -p "$HOME/.config/autostart" && printf "[Desktop Entry]\nType=Application\nName=Blueman Applet\nHidden=true\n# Switched off by SekaiPop'"'"'s installer: the shell has its own Bluetooth controls. Delete this file to have it back.\n" > "$HOME/.config/autostart/blueman.desktop"'
+fi
+
 # folder default app (only if nothing is set)
 if have xdg-mime && [ -z "$(xdg-mime query default inode/directory 2>/dev/null)" ]; then
     for fm in dolphin thunar org.gnome.Nautilus nemo pcmanfm; do
