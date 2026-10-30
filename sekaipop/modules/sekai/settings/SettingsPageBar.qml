@@ -199,7 +199,7 @@ SettingsPage {
         SettingToggle {
             icon: "deployed_code"
             label: "Count AUR updates"
-            detail: "paru or yay"
+            detail: "paru or yay (Arch only)"
             checked: SettingsService.flag("updates.aur")
             onToggled: {
                 SettingsService.toggle("updates.aur")

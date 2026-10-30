@@ -11,7 +11,11 @@
 #         3 = optional
 # Exit code: 0 = all Tier 1 present, 1 = something in Tier 1 is missing.
 #
-# Package names are for Arch / AUR. On other distros read them as hints.
+# Package names fed into record()/cmd()/etc below are always Arch/AUR names: that's the one
+# vocabulary the whole script's checks are written in. For the printed summary they are run
+# through deb_name() when apt is the detected package manager, so the "install this" lines are
+# always right for the machine you're on. deb_name() is a plain-function copy of the DEB[] map in
+# install-deps.sh -- keep the two in sync if you add or re-map a package in either file.
 
 set -u
 
@@ -80,6 +84,80 @@ add_pkg() {
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Which package manager is on this machine? Only changes what the summary prints, never the checks
+# themselves (those are the same regardless of distro).
+PM=none
+have pacman && PM=pacman
+[ "$PM" = none ] && have apt-get && PM=apt
+
+# deb_name <arch-pkg>: translate one Arch/AUR package name to its Debian package(s) for the summary.
+# Mirrors the DEB[] associative array in install-deps.sh one for one -- see the comment up top.
+# Echoes one of:
+#   <names>        one or more space-separated Debian package names (apt)
+#   bpo:<names>    same, but only available via trixie-backports
+#   -              not packaged for Debian: install-by-hand hint printed separately, see show_tier()
+#   (empty)        no mapping known; the summary falls back to the Arch name itself
+deb_name() {
+    case "$1" in
+        hyprland) echo "bpo:hyprland" ;;                      quickshell) echo "bpo:quickshell" ;;
+        qt6-base) echo "libqt6core6t64 libqt6gui6 libqt6qml6" ;;
+        qt6-declarative) echo "qml6-module-qtquick qml6-module-qtquick-effects qml6-module-qtquick-shapes qml6-module-qtquick-layouts qml6-module-qtquick-controls qml6-module-qt-labs-folderlistmodel qml6-module-qtqml-models qml6-module-qtqml-workerscript" ;;
+        qt6-multimedia|qt6-multimedia-ffmpeg) echo "libqt6multimedia6 qml6-module-qtmultimedia" ;;
+        qt6-svg) echo "qt6-svg-plugins" ;;                    qt6-imageformats) echo "qt6-image-formats-plugins" ;;
+        qt6-wayland) echo "qt6-wayland" ;;                    qt6-shadertools) echo "qt6-shader-baker" ;;
+        dbus) echo "dbus" ;;                                  polkit) echo "polkitd pkexec" ;;
+        mesa) echo "libgl1-mesa-dri mesa-vulkan-drivers" ;;
+        pipewire) echo "pipewire pipewire-audio" ;;           wireplumber) echo "wireplumber" ;;
+        pipewire-pulse) echo "pipewire-pulse" ;;              libpulse) echo "libpulse0 pulseaudio-utils" ;;
+        networkmanager) echo "network-manager" ;;             bluez) echo "bluez" ;;
+        bluez-utils) echo "bluez" ;;                           upower) echo "upower" ;;
+        power-profiles-daemon) echo "power-profiles-daemon" ;;
+        libnotify) echo "libnotify-bin" ;;                    wl-clipboard) echo "wl-clipboard" ;;
+        jq) echo "jq" ;;                                      curl) echo "curl" ;;
+        git) echo "git" ;;                                    xdg-utils) echo "xdg-utils" ;;
+        xdg-user-dirs) echo "xdg-user-dirs" ;;                 fontconfig) echo "fontconfig" ;;
+        python) echo "python3" ;;                              python-numpy) echo "python3-numpy" ;;
+        ttf-material-symbols-variable) echo "-" ;;
+        xorg-xwayland) echo "xwayland" ;;
+        xdg-desktop-portal) echo "xdg-desktop-portal" ;;       xdg-desktop-portal-hyprland) echo "bpo:xdg-desktop-portal-hyprland" ;;
+        xdg-desktop-portal-gtk) echo "xdg-desktop-portal-gtk" ;;
+        gvfs) echo "gvfs" ;;                                   adwaita-icon-theme) echo "adwaita-icon-theme" ;;
+        noto-fonts) echo "fonts-noto-core" ;;                  noto-fonts-cjk) echo "fonts-noto-cjk" ;;
+        noto-fonts-emoji) echo "fonts-noto-color-emoji" ;;     ttf-jetbrains-mono-nerd) echo "fonts-jetbrains-mono" ;;
+        gnome-keyring) echo "gnome-keyring" ;;                 libsecret) echo "libsecret-1-0" ;;
+        pipewire-alsa) echo "pipewire-alsa" ;;
+        matugen|matugen-bin) echo "matugen" ;;                 cava) echo "cava" ;;
+        easyeffects) echo "easyeffects" ;;
+        grim) echo "grim" ;;                                   slurp) echo "slurp" ;;
+        cliphist) echo "cliphist" ;;                           wtype) echo "wtype" ;;
+        hyprpicker) echo "bpo:hyprpicker" ;;                   hyprsunset) echo "bpo:hyprsunset" ;;
+        imagemagick) echo "imagemagick" ;;                     tesseract) echo "tesseract-ocr" ;;
+        tesseract-data-eng) echo "tesseract-ocr-eng" ;;
+        swappy) echo "swappy" ;;                               wf-recorder) echo "wf-recorder" ;;
+        ffmpeg) echo "ffmpeg" ;;
+        brightnessctl) echo "brightnessctl" ;;                 ddcutil) echo "ddcutil" ;;
+        zenity) echo "zenity" ;;                               kitty) echo "kitty" ;;
+        plasma-nm) echo "plasma-nm" ;;                         kde-cli-tools) echo "kde-cli-tools" ;;
+        blueman) echo "blueman" ;;
+        dconf) echo "dconf-cli" ;;                             glib2) echo "libglib2.0-bin" ;;
+        adw-gtk-theme) echo "-" ;;                             xorg-xrdb) echo "x11-xserver-utils" ;;
+        libcanberra) echo "libcanberra0" ;;                    sound-theme-freedesktop) echo "sound-theme-freedesktop" ;;
+        pacman-contrib) echo "-" ;;
+        python-aubio) echo "python3-aubio" ;;                  songrec) echo "-" ;;
+        mpvpaper) echo "-" ;;                                  nwg-displays) echo "nwg-displays" ;;
+        hypridle) echo "bpo:hypridle" ;;                       nodejs) echo "nodejs" ;;
+        pnpm) echo "npm" ;;                                    cloudflare-warp-bin) echo "-" ;;
+        dolphin) echo "dolphin" ;;                             kio-extras) echo "kio-extras" ;;
+        ffmpegthumbs) echo "ffmpegthumbs" ;;                   thunar) echo "thunar" ;;
+        thunar-volman) echo "thunar-volman" ;;                 tumbler) echo "tumbler" ;;
+        qt6ct|qt5ct) echo "qt6ct" ;;
+        vulkan-radeon|vulkan-intel) echo "mesa-vulkan-drivers" ;;
+        playerctl) echo "playerctl" ;;                         base-devel) echo "build-essential" ;;
+        systemd|bash|dash) echo "$1" ;;
+        *) echo "" ;;
+    esac
+}
+
 # cmd <tier> <command> <pkg> [repo] [note]
 cmd() { have "$2"; record "$1" "$2" $((! $? )) "$3" "${4:-pac}" "${5:-}"; }
 
@@ -133,10 +211,13 @@ section "System"
 if [ "$(id -u)" = 0 ]; then
     printf '  %s[warn]%s running as root; run this as your normal user\n' "$Y" "$Z"
 fi
-if [ -r /etc/os-release ]; then . /etc/os-release; printf '  %sdistro: %s%s\n' "$D" "${PRETTY_NAME:-unknown}" "$Z"; fi
-if ! have pacman; then
-    printf '  %s[note]%s no pacman found: package names below are Arch names, translate them for your distro\n' "$Y" "$Z"
-fi
+DISTRO_NAME=unknown
+if [ -r /etc/os-release ]; then . /etc/os-release; DISTRO_NAME=${PRETTY_NAME:-unknown}; printf '  %sdistro: %s%s\n' "$D" "$DISTRO_NAME" "$Z"; fi
+case "$PM" in
+    pacman) ;;
+    apt) printf '  %s[note]%s %s detected: the summary below is translated to apt / trixie-backports package names\n' "$D" "$Z" "$DISTRO_NAME" ;;
+    none) printf '  %s[note]%s no pacman or apt-get found (%s): package names below are Arch names, translate them for your distro\n' "$Y" "$Z" "$DISTRO_NAME" ;;
+esac
 cmd 1 systemctl systemd pac "service checks and the power menu use it"
 cmd 1 sh dash pac
 cmd 1 bash bash pac
@@ -195,7 +276,20 @@ for q in qmake6 qmake-qt6 qtpaths6; do
         fi
     fi
 done
-[ "$QT_CHECKED" = 0 ] && printf '  %s(Qt version not checked: no qmake6/qtpaths6 found; Qt 6.7 or newer is needed)%s\n' "$D" "$Z"
+if [ "$QT_CHECKED" = 0 ] && [ "$PM" = apt ]; then
+    # Debian doesn't install qmake6/qtpaths6 by default (they're in qt6-base-dev-tools, a -dev
+    # package nothing here needs); fall back to asking dpkg for the runtime package's version.
+    qv=$(dpkg-query -W -f='${Version}' libqt6core6t64 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+    if [ -n "$qv" ]; then
+        if [ "$(printf '%s\n6.7.0\n' "$qv" | sort -V | head -n1)" = "6.7.0" ]; then
+            record 1 "Qt $qv (needs 6.7 or newer)" 1 qt6-base pac
+        else
+            record 1 "Qt $qv (needs 6.7 or newer)" 0 qt6-base pac "too old for variable font axes"
+        fi
+        QT_CHECKED=1
+    fi
+fi
+[ "$QT_CHECKED" = 0 ] && printf '  %s(Qt version not checked: no qmake6/qtpaths6/libqt6core6t64 found; Qt 6.7 or newer is needed)%s\n' "$D" "$Z"
 qtplugin 1 "imageformats/libqsvg.so" qt6-svg "Qt SVG plugin" "app icons from icon themes are SVG"
 qtplugin 2 "imageformats/libqwebp.so" qt6-imageformats "Qt image formats (webp)" "the rice accepts webp wallpapers"
 qtplugin 2 "platforms/*wayland*" qt6-wayland "Qt Wayland platform plugin"
@@ -326,8 +420,13 @@ cmd 3 mpvpaper mpvpaper aur "video wallpaper via mpv (built-in player is the fal
 # --------------------------------------------------------------------------
 section "Updates badge, displays, extras"
 # --------------------------------------------------------------------------
-cmd 3 checkupdates pacman-contrib pac "official update count (Arch only)"
-any 3 "AUR helper for the update count (install yay or paru from the AUR)" "" manual yay paru
+if [ "$PM" = apt ]; then
+    # On Debian the update-count badge just shells out to apt directly; nothing extra to install.
+    record 3 "update count (apt, no extra package needed)" 1 "" pac
+else
+    cmd 3 checkupdates pacman-contrib pac "official update count (Arch only)"
+    any 3 "AUR helper for the update count (install yay or paru from the AUR)" "" manual yay paru
+fi
 cmd 3 nwg-displays nwg-displays pac "extra in Settings > Hyprland > Displays"
 cmd 3 hyprpm hyprland pac "only for the scroll-overview plugin"
 cmd 3 warp-cli cloudflare-warp-bin aur "WARP toggle"
@@ -462,16 +561,50 @@ printf '  ok: %s%d%s   core missing: %s%d%s   features missing: %s%d%s   optiona
 if [ "$n_t1" -eq 0 ]; then printf '  %s%s %sCore is complete: the shell can start.%s\n' "$G" "$G_OK" "$B" "$Z"
 else printf '  %s%s %s%d core item(s) missing: install them first.%s\n' "$R" "$G_BAD" "$B" "$n_t1" "$Z"; fi
 
+# manual_hint <arch-pkg>: the one-line "install by hand" hint for a deb_name() "-" result.
+manual_hint() {
+    case "$1" in
+        ttf-material-symbols-variable) echo "Material Symbols Rounded: download the variable font from github.com/google/material-design-icons (variablefont/MaterialSymbolsRounded*.ttf) into ~/.local/share/fonts, then fc-cache -f (install-deps.sh does this for you)" ;;
+        adw-gtk-theme) echo "adw-gtk3: download the latest release tarball from github.com/lassekongo83/adw-gtk3 into ~/.local/share/themes (install-deps.sh does this for you)" ;;
+        songrec) echo "songrec: no Debian package; build from source or 'cargo install songrec' (needs Rust)" ;;
+        mpvpaper) echo "mpvpaper: no Debian package; build from source or 'cargo install mpvpaper' (needs Rust) -- the rice's built-in video wallpaper player is a fine fallback" ;;
+        cloudflare-warp-bin) echo "cloudflare-warp: add Cloudflare's own apt repo (pkg.cloudflareclient.com/WARP), then: sudo apt install cloudflare-warp" ;;
+        pacman-contrib) echo "(Arch-only; on Debian the update badge shells out to apt directly, nothing to install)" ;;
+        *) echo "no Debian package known for $1; install it yourself if you need it" ;;
+    esac
+}
+
 show_tier() { # <tier> <title>
     local t=$1 title=$2 pac="${MISS[$1:pac]:-}" aur="${MISS[$1:aur]:-}" man="${MISS[$1:manual]:-}" m
     [ -z "$pac$aur$man" ] && return
     pac=${pac//|/ }; aur=${aur//|/ }
     printf '\n  %s%s%s\n' "$B" "$title" "$Z"
-    [ -n "$pac" ] && printf '    sudo pacman -S --needed %s\n' "$pac"
-    [ -n "$aur" ] && printf '    yay -S %s\n' "$aur"
-    if [ -n "$man" ]; then
-        printf '    install by hand:\n'
-        while IFS= read -r m; do printf '      - %s\n' "$m"; done <<<"${man//|/$'\n'}"
+    if [ "$PM" = apt ]; then
+        # Translate every Arch/AUR package name recorded above (pac and aur buckets alike -- on
+        # Debian there's no AUR, apt covers both) through deb_name() into apt / backports / by-hand.
+        local apt_main="" apt_bpo="" apt_dash="" n val
+        for n in $pac $aur; do
+            val=$(deb_name "$n")
+            case "$val" in
+                ""|-) apt_dash="$apt_dash${apt_dash:+ }$n" ;;   # "" = unmapped, "-" = known-unpackaged: both go by-hand
+                bpo:*) apt_bpo="$apt_bpo${apt_bpo:+ }${val#bpo:}" ;;
+                *) apt_main="$apt_main${apt_main:+ }$val" ;;
+            esac
+        done
+        [ -n "$apt_main" ] && printf '    sudo apt install %s\n' "$apt_main"
+        [ -n "$apt_bpo" ] && printf '    sudo apt install -t trixie-backports %s\n' "$apt_bpo"
+        if [ -n "$apt_dash$man" ]; then
+            printf '    install by hand:\n'
+            for n in $apt_dash; do printf '      - %s\n' "$(manual_hint "$n")"; done
+            [ -n "$man" ] && while IFS= read -r m; do printf '      - %s\n' "$m"; done <<<"${man//|/$'\n'}"
+        fi
+    else
+        [ -n "$pac" ] && printf '    sudo pacman -S --needed %s\n' "$pac"
+        [ -n "$aur" ] && printf '    yay -S %s\n' "$aur"
+        if [ -n "$man" ]; then
+            printf '    install by hand:\n'
+            while IFS= read -r m; do printf '      - %s\n' "$m"; done <<<"${man//|/$'\n'}"
+        fi
     fi
 }
 show_tier 1 "Install first (core):"

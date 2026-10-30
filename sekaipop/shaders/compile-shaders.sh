@@ -4,11 +4,13 @@
 # runtime — it never reads a .vert/.frag directly, only the .qsb next
 # to it. Re-run this any time a shader source here changes.
 #
-# Needs Qt6's `qsb` (ships in qt6-shadertools on Arch:
-# `pacman -S qt6-shadertools`). Arch's package doesn't symlink it onto
-# PATH — it only installs to /usr/lib/qt6/bin/qsb — so this script
-# checks that path itself rather than requiring you to add it to PATH
-# by hand.
+# Needs Qt6's `qsb` (ships in qt6-shadertools on Arch: `pacman -S
+# qt6-shadertools`; on Debian it's the qt6-shader-baker package: `sudo
+# apt install qt6-shader-baker`). Neither package symlinks it onto
+# PATH — it only installs to /usr/lib/qt6/bin/qsb (or, on Debian's
+# multiarch layout, /usr/lib/x86_64-linux-gnu/qt6/bin/qsb) — so this
+# script checks those paths itself rather than requiring you to add
+# them to PATH by hand.
 #
 # Has a bash shebang so it runs the same regardless of your login
 # shell — safe to invoke from fish as `./shaders/compile-shaders.sh`.
@@ -17,7 +19,7 @@ cd "$(dirname "$0")"
 
 QSB=qsb
 if ! command -v "$QSB" >/dev/null 2>&1; then
-    for candidate in /usr/lib/qt6/bin/qsb /usr/lib/qt6-shadertools/bin/qsb; do
+    for candidate in /usr/lib/qt6/bin/qsb /usr/lib/x86_64-linux-gnu/qt6/bin/qsb /usr/lib/qt6-shadertools/bin/qsb; do
         if [ -x "$candidate" ]; then
             QSB="$candidate"
             break
@@ -28,9 +30,11 @@ fi
 if ! command -v "$QSB" >/dev/null 2>&1 && [ ! -x "$QSB" ]; then
     echo "error: qsb not found on PATH or in /usr/lib/qt6/bin." >&2
     echo "  Arch: pacman -S qt6-shadertools" >&2
-    echo "  (that installs qsb to /usr/lib/qt6/bin, which this script" >&2
-    echo "  checks automatically — if it's still not found, your Qt6" >&2
-    echo "  install may put it somewhere else; find it with:" >&2
+    echo "  Debian: sudo apt install qt6-shader-baker" >&2
+    echo "  (those install qsb to /usr/lib/qt6/bin (or, on Debian's" >&2
+    echo "  multiarch layout, /usr/lib/x86_64-linux-gnu/qt6/bin), which" >&2
+    echo "  this script checks automatically — if it's still not found," >&2
+    echo "  your Qt6 install may put it somewhere else; find it with:" >&2
     echo "  sudo find / -name qsb -type f 2>/dev/null)" >&2
     exit 1
 fi

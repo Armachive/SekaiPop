@@ -3,6 +3,7 @@
 -- Built on end-4's dots-hyprland layout (GPL-3.0), rewritten around the sekaipop shell.
 --
 --   hyprland/*.lua          the defaults (variables, env, execs, general, rules, keybinds)
+--   hyprland/performance.lua the Lite profile, only loaded while ~/.config/sekaipop/lite exists
 --   custom/*.lua            YOUR changes. Loaded after the defaults, never overwritten.
 --   workspaces.lua          nwg-displays / the shell's Settings write this one
 --   monitors.lua            made for THIS machine by the installer, then written by the shell's
@@ -50,6 +51,13 @@ load("custom.env", true)
 -- Defaults --
 load("hyprland.execs")
 load("hyprland.general")
+-- Lite profile: compositor effects off, only while ~/.config/sekaipop/lite exists
+-- (install.sh --lite; see hyprland/performance.lua)
+local config_dir = os.getenv("XDG_CONFIG_HOME")
+if not config_dir or config_dir == "" then config_dir = HOME_DIR .. "/.config" end
+if io.open(config_dir .. "/sekaipop/lite", "r") then
+    load("hyprland.performance")
+end
 load("hyprland.rules")
 load("hyprland.keybinds")
 

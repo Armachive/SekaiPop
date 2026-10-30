@@ -12,6 +12,8 @@
 
 <div align="left">
 
+> 🐧 **This is the Debian 13 port** of [Blapples/SekaiPop](https://github.com/Blapples/SekaiPop). The same shell, installed with `apt` (Hyprland and Quickshell from trixie-backports), with a **SekaiPop** entry on the login screen so it can live next to another desktop (Niri + DankMaterialShell, GNOME...) and a `--lite` profile for integrated GPUs. Arch still works. Details: [docs/DEBIAN.md](docs/DEBIAN.md).
+>
 > ⚠️ **Warning: this is a passion project, and it is heavily vibe-coded.**
 >
 > I designed and directed SekaiPop myself: the visuals, the UI, how everything should animate and how everything should behave. Claude wrote most of the code to make that possible, so expect rough edges and bugs.
@@ -100,12 +102,12 @@ Most shells pick one look and theme it. SekaiPop starts from a single design lan
 
 | Need | Notes |
 |---|---|
-| **Arch-based distro** (Arch, CachyOS, EndeavourOS) | The installer uses `pacman` and the AUR |
-| **Hyprland 0.55+** | The config is **Lua** (`hyprland.lua`); older versions can't read it |
+| **Arch-based distro** (Arch, CachyOS, EndeavourOS) **or Debian 13 "trixie"** | The installer uses `pacman` and the AUR, or `apt` with `trixie-backports` ([docs/DEBIAN.md](docs/DEBIAN.md)) |
+| **Hyprland 0.55+** | The config is **Lua** (`hyprland.lua`); older versions can't read it. Debian 13: 0.55.2 from trixie-backports |
 | **Quickshell** | `quickshell` or `quickshell-git` |
-| **Qt 6.7+** | Shaders ship built for Qt 6.12. On older Qt the installer rebuilds them once (needs `qt6-shadertools`) |
+| **Qt 6.7+** | Shaders ship built with Qt 6.8's `qsb` (Debian 13's Qt), which newer Qt reads too. On older Qt the installer rebuilds them once (`qt6-shadertools` on Arch, `qt6-shader-baker` on Debian) |
 | **A normal user with `sudo`** | Don't run the installer as root |
-| **An AUR helper** (`yay` or `paru`) | The installer can build `yay-bin` for you if you have none |
+| **An AUR helper** (`yay` or `paru`) | Arch only. The installer can build `yay-bin` for you if you have none |
 
 > [!IMPORTANT]
 > GPU drivers are **never** touched by the installer. Install your own (especially NVIDIA) before you start.
@@ -171,14 +173,15 @@ The portals are what make screen sharing work in Discord, browsers and OBS.
 ### 1. Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Blapples/SekaiPop/main/get.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Armachive/SekaiPop/debian/get.sh | bash
 ```
 
-That is the whole install. It downloads SekaiPop, then does three jobs:
+That is the whole install. It downloads SekaiPop, then does four jobs:
 
-1. **Dependencies:** packages (repos and AUR), Google Sans Flex, services, groups.
+1. **Dependencies:** packages (pacman + AUR, or apt + trixie-backports), Google Sans Flex and Material Symbols, services, groups.
 2. **The shell:** copied to `~/.config/quickshell/sekaipop` (an older copy is kept as `.bak-<time>`).
 3. **Hyprland:** a ready Lua config in `~/.config/hypr` (keybinds, rules, autostart, idle lock) and a `monitors.lua` made for the screens connected right now. Inside a running Hyprland it picks the highest refresh rate your screen offers at its preferred size.
+4. **Login screen:** a **SekaiPop** session entry (`/usr/local/share/wayland-sessions/sekaipop.desktop`), beside your other sessions. Your other desktop and its shell are not touched.
 
 > [!WARNING]
 > Run it as your normal user, not root. It calls `sudo` itself where needed.
@@ -186,7 +189,7 @@ That is the whole install. It downloads SekaiPop, then does three jobs:
 Want to look first? Add `--dry-run`: it prints everything it would do and changes nothing.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Blapples/SekaiPop/main/get.sh | bash -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/Armachive/SekaiPop/debian/get.sh | bash -s -- --dry-run
 ```
 
 Options go after the command (see [Installer options](#installer-options)), for example `--yes` or `--hypr merge`.
@@ -195,7 +198,7 @@ Options go after the command (see [Installer options](#installer-options)), for 
 <summary>Prefer to clone it yourself?</summary>
 
 ```bash
-git clone https://github.com/Blapples/SekaiPop.git
+git clone -b debian https://github.com/Armachive/SekaiPop.git
 cd SekaiPop
 ./install.sh --dry-run      # look first
 ./install.sh                # install
@@ -211,12 +214,12 @@ sekaipop/    the shell itself
 
 ### 2. Start it
 
-Log out and back in, choosing the plain **Hyprland** session (**not** "uwsm"). The shell starts by itself. Inside an already running Hyprland the installer offers to reload and start it for you.
+Log out and back in, choosing the **SekaiPop** session (the plain **Hyprland** one works too; **not** "uwsm"). The shell starts by itself. Inside an already running Hyprland the installer offers to reload and start it for you. To use your other desktop again, pick its entry at the login screen; nothing needs switching off.
 
 ### 3. Check everything
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Blapples/SekaiPop/main/get.sh | bash -s -- --check
+curl -fsSL https://raw.githubusercontent.com/Armachive/SekaiPop/debian/get.sh | bash -s -- --check
 ```
 
 It is read-only: it lists what is installed and what is missing, and changes nothing.
@@ -231,16 +234,19 @@ It is read-only: it lists what is installed and what is missing, and changes not
 | `--hypr merge` | **Keep your config**, only add a small `sekaipop_session` file |
 | `--hypr skip` | Don't touch Hyprland at all |
 | `--no-deps` | Only copy files, install no packages |
+| `--no-session` | Don't add the SekaiPop entry to the login screen |
+| `--lite` | Lite profile: Hyprland blur, shadows and dimming off, the shell's Low-end mode on. For integrated GPUs and laptops. Undo: `rm ~/.config/sekaipop/lite` |
 | `--rice DIR` | Install a different copy of the `sekaipop` folder |
 | `--restore` | Put back the Hyprland config backed up by the last run |
 | `-- <options>` | Pass options on to `install-deps.sh` |
 
-`install-deps.sh` extras (pass them after `--`): `--core-only`, `--with-optional`, `--no-desktop-layer`, `--gpu amd|intel|nvidia|skip`, `--ddc`, `--file-manager dolphin|thunar|none`, `--no-update`, `--no-aur`.
+`install-deps.sh` extras (pass them after `--`): `--core-only`, `--with-optional`, `--no-desktop-layer`, `--gpu amd|intel|nvidia|skip`, `--ddc`, `--file-manager dolphin|thunar|none`, `--no-update`, `--no-aur` (Arch; a no-op on Debian).
 
 ```bash
 ./install.sh --hypr merge                          # I already have a Hyprland config
 ./install.sh -- --with-optional --gpu amd          # everything, AMD GPU
 ./install.sh --yes -- --core-only                  # bare minimum, no questions
+./install.sh --lite                                # Debian laptop with an iGPU: full install, light effects
 ```
 
 ### Safety
@@ -310,11 +316,11 @@ Volume and brightness keys go through the shell's on-screen display.
 
 | Problem | Try |
 |---|---|
-| Shell doesn't start | Run `qs -c sekaipop log`, and make sure you logged into the plain **Hyprland** session, not uwsm |
+| Shell doesn't start | Run `qs -c sekaipop log`, and make sure you logged into the **SekaiPop** or plain **Hyprland** session, not uwsm |
 | "Failed to load configuration" after an update ("... is not a type" for something the file declares) | Restart the shell, don't reload it: **Restart shell** on the error card, or `qs kill -c sekaipop; qs -c sekaipop -d`. A reload stays inside the same process, which can hold on to the old files' state (issue #79) |
 | Black screen after install | `./install.sh --restore`, then read `~/.cache/sekaipop/hypr-errors.log` |
 | Icons are missing | Install `ttf-material-symbols-variable`, then `fc-cache -f` |
-| Shaders or transitions don't draw | Qt older than 6.12 needs the shaders rebuilt: `bash ~/.config/quickshell/sekaipop/shaders/compile-shaders.sh` (needs `qt6-shadertools`) |
+| Shaders or transitions don't draw | Qt older than 6.8 needs the shaders rebuilt: `bash ~/.config/quickshell/sekaipop/shaders/compile-shaders.sh` (needs `qsb`: `qt6-shadertools` on Arch, `qt6-shader-baker` on Debian) |
 | Hyprland rejected part of the config | `hyprctl configerrors` shows what it refused to load |
 | Something is missing | Run `./check-deps.sh`; it lists every missing package and QML module |
 

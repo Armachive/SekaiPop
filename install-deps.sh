@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # install-deps.sh: installs everything SekaiPop needs to be a full working desktop
-# on Arch / CachyOS / EndeavourOS (anything with pacman), starting from a minimal Hyprland system.
+# on Arch / CachyOS / EndeavourOS (anything with pacman) OR Debian 13 "trixie" (apt),
+# starting from a minimal Hyprland system.
 #
 # It does the same three jobs as end-4's "./setup install", for this rice:
-#   1. packages      (repo packages with pacman, the rest from the AUR with yay/paru)
+#   1. packages      (repo packages with pacman, the rest from the AUR with yay/paru;
+#                      on Debian: apt packages, trixie-backports for the hypr* tools, and a
+#                      handful installed by hand because Debian doesn't package them at all)
 #   2. setup         (services, groups, user folders, Google Sans Flex font)
 #   3. session glue  (a small Hyprland file for portals / screen sharing / autostart)
 # It does NOT copy the rice itself and does NOT touch GPU drivers (same as end-4's).
@@ -18,7 +21,7 @@
 #   --ddc                 set up i2c access for external-monitor brightness (ddcutil)
 #   --file-manager dolphin|thunar|none   which file manager to add (default: dolphin if you run KDE/Plasma or already have it, else thunar)
 #   --no-update           don't run a full system update first
-#   --no-aur  --no-services  --no-fonts  --no-session
+#   --no-aur  --no-services  --no-fonts  --no-session   (--no-aur is a no-op on Debian: there is no AUR there)
 #   -h, --help
 #
 # Run as your normal user (it uses sudo where needed). Run ./check-deps.sh afterwards.
@@ -111,8 +114,17 @@ have() { command -v "$1" >/dev/null 2>&1; }
 [ "${SEKAIPOP_FULL_INSTALL:-0}" = 1 ] || banner "SekaiPop dependencies" "packages, fonts, services, groups"
 step "Checking the system"
 [ "$(id -u)" = 0 ] && { echo "Run this as your normal user, not root (it calls sudo itself)." >&2; exit 1; }
-have pacman || { echo "pacman not found: this installer is for Arch-based systems. Read DEPENDENCIES.md for the package list." >&2; exit 1; }
-have sudo   || { echo "sudo not found: install it first (pacman -S sudo) and add yourself to the wheel group." >&2; exit 1; }
+# PM is which package manager drives step 1: pacman (Arch and friends) or apt (Debian 13 "trixie").
+if have pacman; then PM=pacman
+elif have apt-get; then PM=apt
+else echo "Neither pacman nor apt-get found: this installer supports Arch-based systems and Debian 13 (trixie). Read DEPENDENCIES.md for the package list." >&2; exit 1
+fi
+if ! have sudo; then
+    if [ "$PM" = pacman ]; then echo "sudo not found: install it first (pacman -S sudo) and add yourself to the wheel group." >&2
+    else echo "sudo not found: install it first (apt install sudo) and add yourself to the sudo group." >&2
+    fi
+    exit 1
+fi
 [ "$DRY" = 1 ] && info "DRY RUN: nothing will be changed."
 ok "distro: $(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")"
 
@@ -146,6 +158,72 @@ FEATURES=(
 )
 OPTIONAL=( python-aubio songrec mpvpaper nwg-displays hypridle nodejs pnpm cloudflare-warp-bin )
 
+# ---- Arch name -> Debian package(s), used only when PM=apt. Keyed by the FIRST alternative of
+# each "a|b" entry above (that's the Arch package name), so CORE/DESKTOP_LAYER/FEATURES/OPTIONAL
+# stay the single source of truth for "what we want", on both distros.
+#   value = space-separated Debian package name(s)
+#   value = "-"        -> not packaged for Debian at all: skipped with a warning (some of these,
+#                          the fonts and the adw-gtk3 theme, are instead installed by hand below)
+#   value = "bpo:<pkg>" -> only in trixie-backports (Hyprland 0.55.2 and the hypr* tools)
+# Keep this in sync with deb_name() in check-deps.sh (same mapping, duplicated there so that
+# read-only script doesn't need to source this one).
+declare -A DEB=(
+  [hyprland]="bpo:hyprland"                      [quickshell]="bpo:quickshell"
+  [qt6-base]="libqt6core6t64 libqt6gui6 libqt6qml6"
+  [qt6-declarative]="qml6-module-qtquick qml6-module-qtquick-effects qml6-module-qtquick-shapes qml6-module-qtquick-layouts qml6-module-qtquick-controls qml6-module-qt-labs-folderlistmodel qml6-module-qtqml-models qml6-module-qtqml-workerscript"
+  [qt6-multimedia-ffmpeg]="libqt6multimedia6 qml6-module-qtmultimedia"
+  [qt6-svg]="qt6-svg-plugins"                    [qt6-imageformats]="qt6-image-formats-plugins"
+  [qt6-wayland]="qt6-wayland"                    [qt6-shadertools]="qt6-shader-baker"
+  [dbus]="dbus"                                  [polkit]="polkitd pkexec"
+  [mesa]="libgl1-mesa-dri mesa-vulkan-drivers"
+  [pipewire]="pipewire pipewire-audio"           [wireplumber]="wireplumber"
+  [pipewire-pulse]="pipewire-pulse"              [libpulse]="libpulse0 pulseaudio-utils"
+  [networkmanager]="network-manager"             [bluez]="bluez"
+  [bluez-utils]="bluez"                          [upower]="upower"
+  [power-profiles-daemon]="power-profiles-daemon"
+  [libnotify]="libnotify-bin"                    [wl-clipboard]="wl-clipboard"
+  [jq]="jq"                                      [curl]="curl"
+  [git]="git"                                    [xdg-utils]="xdg-utils"
+  [xdg-user-dirs]="xdg-user-dirs"                [fontconfig]="fontconfig"
+  [python]="python3"                             [python-numpy]="python3-numpy"
+  [ttf-material-symbols-variable]="-"
+  [xorg-xwayland]="xwayland"
+  [xdg-desktop-portal]="xdg-desktop-portal"      [xdg-desktop-portal-hyprland]="bpo:xdg-desktop-portal-hyprland"
+  [xdg-desktop-portal-gtk]="xdg-desktop-portal-gtk"
+  [gvfs]="gvfs"                                  [adwaita-icon-theme]="adwaita-icon-theme"
+  [noto-fonts]="fonts-noto-core"                 [noto-fonts-cjk]="fonts-noto-cjk"
+  [noto-fonts-emoji]="fonts-noto-color-emoji"    [ttf-jetbrains-mono-nerd]="fonts-jetbrains-mono"
+  [gnome-keyring]="gnome-keyring"                [libsecret]="libsecret-1-0"
+  [pipewire-alsa]="pipewire-alsa"
+  [matugen]="matugen"                            [cava]="cava"
+  [easyeffects]="easyeffects"
+  [grim]="grim"                                  [slurp]="slurp"
+  [cliphist]="cliphist"                          [wtype]="wtype"
+  [hyprpicker]="bpo:hyprpicker"                  [hyprsunset]="bpo:hyprsunset"
+  [imagemagick]="imagemagick"                    [tesseract]="tesseract-ocr"
+  [tesseract-data-eng]="tesseract-ocr-eng"
+  [swappy]="swappy"                              [wf-recorder]="wf-recorder"
+  [ffmpeg]="ffmpeg"
+  [brightnessctl]="brightnessctl"                [ddcutil]="ddcutil"
+  [zenity]="zenity"                              [kitty]="kitty"
+  [plasma-nm]="plasma-nm"                        [kde-cli-tools]="kde-cli-tools"
+  [blueman]="blueman"
+  [dconf]="dconf-cli"                            [glib2]="libglib2.0-bin"
+  [adw-gtk-theme]="-"                            [xorg-xrdb]="x11-xserver-utils"
+  [libcanberra]="libcanberra0"                   [sound-theme-freedesktop]="sound-theme-freedesktop"
+  [pacman-contrib]="-"
+  [python-aubio]="python3-aubio"                 [songrec]="-"
+  [mpvpaper]="-"                                 [nwg-displays]="nwg-displays"
+  [hypridle]="bpo:hypridle"                      [nodejs]="nodejs"
+  [pnpm]="npm"                                   [cloudflare-warp-bin]="-"
+  [dolphin]="dolphin"                            [kio-extras]="kio-extras"
+  [ffmpegthumbs]="ffmpegthumbs"                  [thunar]="thunar"
+  [thunar-volman]="thunar-volman"                [tumbler]="tumbler"
+  [qt6ct]="qt6ct"
+  [vulkan-radeon]="mesa-vulkan-drivers"          [vulkan-intel]="mesa-vulkan-drivers"
+  [playerctl]="playerctl"                        [base-devel]="build-essential"
+)
+
 WANT=("${CORE[@]}")
 if [ "$CORE_ONLY" = 0 ]; then
     [ "$DESKTOP" = 1 ] && WANT+=("${DESKTOP_LAYER[@]}")
@@ -153,14 +231,21 @@ if [ "$CORE_ONLY" = 0 ]; then
 fi
 [ "$WITH_OPT" = 1 ] && WANT+=("${OPTIONAL[@]}")
 
+# "is this package installed?" across both package managers
+pkg_installed() {
+    if [ "$PM" = pacman ]; then pacman -T "$1" >/dev/null 2>&1
+    else [ "$(dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null)" = installed ]
+    fi
+}
+
 # KDE / Plasma already present? Then Qt apps are themed by Plasma (QT_QPA_PLATFORMTHEME=kde) and qt6ct is not wanted.
 IS_KDE=0
-pacman -T plasma-integration >/dev/null 2>&1 && IS_KDE=1
+pkg_installed plasma-integration && IS_KDE=1
 [ "${QT_QPA_PLATFORMTHEME:-}" = kde ] && IS_KDE=1
 
 if [ "$CORE_ONLY" = 0 ] && [ "$DESKTOP" = 1 ]; then
     if [ "$FM" = auto ]; then
-        if [ "$IS_KDE" = 1 ] || pacman -T dolphin >/dev/null 2>&1; then FM=dolphin; else FM=thunar; fi
+        if [ "$IS_KDE" = 1 ] || pkg_installed dolphin; then FM=dolphin; else FM=thunar; fi
     fi
     case "$FM" in
         dolphin) WANT+=(dolphin kio-extras ffmpegthumbs) ;;
@@ -192,68 +277,138 @@ info "GPU: $GPU"
 
 # ---------------------------------------------------------------- 1. packages
 step "1. Packages"
-if [ "$UPDATE" = 1 ]; then
-    if ask "Run a full system update first (sudo pacman -Syu)? Recommended on a fresh install."; then
-        if [ "$YES" = 1 ]; then run sudo pacman -Syu --noconfirm; else run sudo pacman -Syu; fi
+
+if [ "$PM" = pacman ]; then
+    # --------------------------------------------------- Arch: pacman + AUR
+    if [ "$UPDATE" = 1 ]; then
+        if ask "Run a full system update first (sudo pacman -Syu)? Recommended on a fresh install."; then
+            if [ "$YES" = 1 ]; then run sudo pacman -Syu --noconfirm; else run sudo pacman -Syu; fi
+        fi
     fi
-fi
 
-REPO=(); AURP=(); ALREADY=()
-for entry in "${WANT[@]}"; do
-    IFS='|' read -ra alts <<<"$entry"
-    # already satisfied (installed, or provided by a -git / AUR build of the same thing)? leave it alone.
-    # This is what stops conflicts like adw-gtk-theme vs adw-gtk-theme-git.
-    satisfied=0
-    for a in "${alts[@]}"; do
-        if pacman -T "$a" >/dev/null 2>&1; then satisfied=1; ALREADY+=("$a"); break; fi
-    done
-    [ "$satisfied" = 1 ] && continue
-    hit=""
-    for a in "${alts[@]}"; do
-        if pacman -Si "$a" >/dev/null 2>&1; then hit=$a; break; fi
-    done
-    if [ -n "$hit" ]; then REPO+=("$hit"); else AURP+=("${alts[${#alts[@]}-1]}"); fi
-done
-info "${#ALREADY[@]} already installed (kept as they are), ${#REPO[@]} to install from the repos, ${#AURP[@]} from the AUR"
-[ "${#REPO[@]}" -gt 0 ] && info "repos: ${REPO[*]}"
-[ "${#AURP[@]}" -gt 0 ] && info "AUR: ${AURP[*]}"
-
-PACFLAGS=(--needed); [ "$YES" = 1 ] && PACFLAGS+=(--noconfirm)
-if [ "${#REPO[@]}" -gt 0 ]; then
-    if ! run sudo pacman -S "${PACFLAGS[@]}" "${REPO[@]}"; then
-        warn "the batch install failed (usually a package conflict), retrying one package at a time"
-        for p in "${REPO[@]}"; do
-            run sudo pacman -S "${PACFLAGS[@]}" "$p" || fail "pacman could not install $p (conflicts with something you have installed?)"
+    REPO=(); AURP=(); ALREADY=()
+    for entry in "${WANT[@]}"; do
+        IFS='|' read -ra alts <<<"$entry"
+        # already satisfied (installed, or provided by a -git / AUR build of the same thing)? leave it alone.
+        # This is what stops conflicts like adw-gtk-theme vs adw-gtk-theme-git.
+        satisfied=0
+        for a in "${alts[@]}"; do
+            if pacman -T "$a" >/dev/null 2>&1; then satisfied=1; ALREADY+=("$a"); break; fi
         done
-    fi
-fi
+        [ "$satisfied" = 1 ] && continue
+        hit=""
+        for a in "${alts[@]}"; do
+            if pacman -Si "$a" >/dev/null 2>&1; then hit=$a; break; fi
+        done
+        if [ -n "$hit" ]; then REPO+=("$hit"); else AURP+=("${alts[${#alts[@]}-1]}"); fi
+    done
+    info "${#ALREADY[@]} already installed (kept as they are), ${#REPO[@]} to install from the repos, ${#AURP[@]} from the AUR"
+    [ "${#REPO[@]}" -gt 0 ] && info "repos: ${REPO[*]}"
+    [ "${#AURP[@]}" -gt 0 ] && info "AUR: ${AURP[*]}"
 
-if [ "${#AURP[@]}" -gt 0 ]; then
-    if [ "$AUR" = 0 ]; then
-        warn "--no-aur: skipped these, install them yourself: ${AURP[*]}"
-    else
-        helper=""
-        have yay && helper=yay
-        [ -z "$helper" ] && have paru && helper=paru
-        if [ -z "$helper" ]; then
-            warn "no AUR helper found (yay or paru)."
-            if ask "Build yay-bin from the AUR now (needs base-devel + git, like end-4's installer)?"; then
-                run sudo pacman -S --needed base-devel git
-                run_sh 'rm -rf /tmp/sekaipop-yay && git clone https://aur.archlinux.org/yay-bin.git /tmp/sekaipop-yay && cd /tmp/sekaipop-yay && makepkg -si'"$([ "$YES" = 1 ] && echo ' --noconfirm')"' && cd / && rm -rf /tmp/sekaipop-yay' \
-                    || fail "could not build yay"
-                helper=yay
+    PACFLAGS=(--needed); [ "$YES" = 1 ] && PACFLAGS+=(--noconfirm)
+    if [ "${#REPO[@]}" -gt 0 ]; then
+        if ! run sudo pacman -S "${PACFLAGS[@]}" "${REPO[@]}"; then
+            warn "the batch install failed (usually a package conflict), retrying one package at a time"
+            for p in "${REPO[@]}"; do
+                run sudo pacman -S "${PACFLAGS[@]}" "$p" || fail "pacman could not install $p (conflicts with something you have installed?)"
+            done
+        fi
+    fi
+
+    if [ "${#AURP[@]}" -gt 0 ]; then
+        if [ "$AUR" = 0 ]; then
+            warn "--no-aur: skipped these, install them yourself: ${AURP[*]}"
+        else
+            helper=""
+            have yay && helper=yay
+            [ -z "$helper" ] && have paru && helper=paru
+            if [ -z "$helper" ]; then
+                warn "no AUR helper found (yay or paru)."
+                if ask "Build yay-bin from the AUR now (needs base-devel + git, like end-4's installer)?"; then
+                    run sudo pacman -S --needed base-devel git
+                    run_sh 'rm -rf /tmp/sekaipop-yay && git clone https://aur.archlinux.org/yay-bin.git /tmp/sekaipop-yay && cd /tmp/sekaipop-yay && makepkg -si'"$([ "$YES" = 1 ] && echo ' --noconfirm')"' && cd / && rm -rf /tmp/sekaipop-yay' \
+                        || fail "could not build yay"
+                    helper=yay
+                fi
+            fi
+            if [ -n "$helper" ]; then
+                AURFLAGS=(-S --needed); [ "$YES" = 1 ] && AURFLAGS+=(--noconfirm)
+                if ! run "$helper" "${AURFLAGS[@]}" "${AURP[@]}"; then
+                    warn "the AUR batch failed, retrying one package at a time"
+                    for p in "${AURP[@]}"; do
+                        run "$helper" "${AURFLAGS[@]}" "$p" || fail "AUR: could not build $p"
+                    done
+                fi
+            else
+                warn "skipped the AUR packages: ${AURP[*]}"
             fi
         fi
-        if [ -n "$helper" ]; then
-            AURFLAGS=(-S --needed); [ "$YES" = 1 ] && AURFLAGS+=(--noconfirm)
-            if ! run "$helper" "${AURFLAGS[@]}" "${AURP[@]}"; then
-                warn "the AUR batch failed, retrying one package at a time"
-                for p in "${AURP[@]}"; do
-                    run "$helper" "${AURFLAGS[@]}" "$p" || fail "AUR: could not build $p"
-                done
+    fi
+else
+    # --------------------------------------------------- Debian: apt (+ trixie-backports)
+    if [ "$UPDATE" = 1 ]; then
+        if ask "Run a full system update first (sudo apt update && sudo apt full-upgrade)? Recommended on a fresh install."; then
+            run sudo apt update
+            if [ "$YES" = 1 ]; then run sudo apt full-upgrade -y; else run sudo apt full-upgrade; fi
+        fi
+    fi
+
+    # Translate CORE/DESKTOP_LAYER/FEATURES/OPTIONAL (Arch names) through DEB[] into three buckets:
+    # plain apt packages, trixie-backports packages, and the handful Debian doesn't package at all.
+    APT_MAIN=(); APT_BPO=(); APT_SKIP=(); ALREADY=()
+    for entry in "${WANT[@]}"; do
+        IFS='|' read -ra alts <<<"$entry"
+        arch=${alts[0]}
+        val=${DEB[$arch]:-$arch}   # not in the map? assume the Arch name doubles as the Debian one
+        if [ "$val" = "-" ]; then
+            APT_SKIP+=("$arch")
+            continue
+        fi
+        bpo=0
+        case "$val" in bpo:*) bpo=1; val=${val#bpo:} ;; esac
+        for p in $val; do
+            if [ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2>/dev/null)" = installed ]; then
+                ALREADY+=("$p")
+            elif [ "$bpo" = 1 ]; then
+                APT_BPO+=("$p")
+            else
+                APT_MAIN+=("$p")
             fi
+        done
+    done
+    info "${#ALREADY[@]} already installed (kept as they are), ${#APT_MAIN[@]} to install with apt, ${#APT_BPO[@]} from trixie-backports"
+    [ "${#APT_MAIN[@]}" -gt 0 ] && info "apt: ${APT_MAIN[*]}"
+    [ "${#APT_BPO[@]}" -gt 0 ] && info "trixie-backports: ${APT_BPO[*]}"
+    [ "${#APT_SKIP[@]}" -gt 0 ] && warn "not packaged for Debian, skipped (see check-deps.sh for install-by-hand hints): ${APT_SKIP[*]}"
+
+    # trixie-backports carries Hyprland 0.55.2 and the hypr* tools; it's not enabled by default.
+    if [ "${#APT_BPO[@]}" -gt 0 ] && ! grep -rqs 'trixie-backports' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+        warn "the trixie-backports apt source is not enabled (needed for: ${APT_BPO[*]})"
+        if ask "Add it now (writes /etc/apt/sources.list.d/trixie-backports.list and runs apt update)?"; then
+            run_sh 'echo "deb http://deb.debian.org/debian trixie-backports main contrib non-free non-free-firmware" | sudo tee /etc/apt/sources.list.d/trixie-backports.list >/dev/null'
+            run sudo apt update
         else
-            warn "skipped the AUR packages: ${AURP[*]}"
+            warn "skipping the trixie-backports packages, add the source and install them yourself: ${APT_BPO[*]}"
+            APT_BPO=()
+        fi
+    fi
+
+    APTFLAGS=(); [ "$YES" = 1 ] && APTFLAGS+=(-y)
+    if [ "${#APT_MAIN[@]}" -gt 0 ]; then
+        if ! run sudo apt install "${APTFLAGS[@]}" "${APT_MAIN[@]}"; then
+            warn "the batch install failed, retrying one package at a time"
+            for p in "${APT_MAIN[@]}"; do
+                run sudo apt install "${APTFLAGS[@]}" "$p" || fail "apt could not install $p"
+            done
+        fi
+    fi
+    if [ "${#APT_BPO[@]}" -gt 0 ]; then
+        if ! run sudo apt install -t trixie-backports "${APTFLAGS[@]}" "${APT_BPO[@]}"; then
+            warn "the trixie-backports batch install failed, retrying one package at a time"
+            for p in "${APT_BPO[@]}"; do
+                run sudo apt install -t trixie-backports "${APTFLAGS[@]}" "$p" || fail "apt could not install $p (from trixie-backports)"
+            done
         fi
     fi
 fi
@@ -268,6 +423,30 @@ if [ "$FONTS" = 1 ]; then
         info "installing Google Sans Flex (the same source end-4's installer uses)"
         run_sh 'set -e; d=$(mktemp -d); git clone --depth 1 --recurse-submodules https://github.com/end-4/google-sans-flex "$d/gsf"; mkdir -p "$HOME/.local/share/fonts/sekaipop-google-sans-flex"; cp -r "$d/gsf/." "$HOME/.local/share/fonts/sekaipop-google-sans-flex/"; rm -rf "$HOME/.local/share/fonts/sekaipop-google-sans-flex/.git"; fc-cache -f; rm -rf "$d"' \
             || fail "Google Sans Flex install failed (put the .ttf files in ~/.local/share/fonts by hand and run fc-cache -f)"
+    fi
+
+    # Material Symbols Rounded is in the AUR on Arch, but Debian has no package for it at all
+    # (DEB[ttf-material-symbols-variable]=-, see the warning above): fetch the variable font by hand.
+    if [ "$PM" = apt ]; then
+        if have fc-list && fc-list 2>/dev/null | grep -qi 'Material Symbols Rounded'; then
+            info "Material Symbols Rounded already installed"
+        else
+            info "installing Material Symbols Rounded (not packaged for Debian, fetched from Google's repo)"
+            run_sh 'set -e; d="$HOME/.local/share/fonts/sekaipop-material-symbols"; mkdir -p "$d"; curl -fL "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf" -o "$d/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf"; fc-cache -f' \
+                || fail "Material Symbols Rounded install failed (download the variable font from google/material-design-icons by hand into ~/.local/share/fonts and run fc-cache -f)"
+        fi
+    fi
+fi
+
+# adw-gtk3 is in the AUR on Arch; Debian has no package for it either (DEB[adw-gtk-theme]=-).
+# Only wanted when FEATURES is part of WANT, i.e. not --core-only.
+if [ "$PM" = apt ] && [ "$CORE_ONLY" = 0 ]; then
+    if [ -d /usr/share/themes/adw-gtk3 ] || [ -d "$HOME/.local/share/themes/adw-gtk3" ] || [ -d "$HOME/.themes/adw-gtk3" ]; then
+        info "adw-gtk3 GTK theme already installed"
+    else
+        info "installing adw-gtk3 (not packaged for Debian, fetched from its GitHub releases)"
+        run_sh 'set -e; url=$(curl -fsSL https://api.github.com/repos/lassekongo83/adw-gtk3/releases/latest | grep -o "https://[^\"]*adw-gtk3v[^\"]*\.tar\.xz" | head -n1); [ -n "$url" ]; d=$(mktemp -d); curl -fsSL "$url" -o "$d/adw-gtk3.tar.xz"; mkdir -p "$HOME/.local/share/themes"; tar -xf "$d/adw-gtk3.tar.xz" -C "$HOME/.local/share/themes"; rm -rf "$d"' \
+            || fail "adw-gtk3 install failed (download the latest release from github.com/lassekongo83/adw-gtk3 by hand into ~/.local/share/themes)"
     fi
 fi
 

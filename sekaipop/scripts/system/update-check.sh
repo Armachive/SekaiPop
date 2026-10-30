@@ -84,6 +84,16 @@ remote_head() {
     printf '%s' "$out" | awk 'NR == 1 { print $1 }'
 }
 
+# The installed Qt version, as "major.minor" (empty if none of these work).
+qt_version() {
+    v=$(pacman -Q qt6-base 2>/dev/null | awk '{print $2}' | grep -oE '^[0-9]+\.[0-9]+')
+    [ -n "$v" ] || v=$(dpkg-query -W -f='${Version}' libqt6core6t64 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+')
+    [ -n "$v" ] || v=$(dpkg-query -W -f='${Version}' libqt6core6 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+')
+    [ -n "$v" ] || v=$(qmake6 -query QT_VERSION 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+')
+    [ -n "$v" ] || v=$(qtpaths6 --qt-version 2>/dev/null | grep -oE '^[0-9]+\.[0-9]+')
+    printf '%s' "$v"
+}
+
 apply_managed() {
     # Work on the real folder, not the path the shell was started from: moving a
     # symlink would replace the link and leave the files it points to behind.
@@ -105,9 +115,12 @@ apply_managed() {
     [ -d "$real/tests" ] || rm -rf "$stage/tests"
     { echo "commit=$commit"; echo "repo=$repo"; echo "ref=$ref"; } > "$stage/.source"
 
-    # Qt older than 6.12 cannot read the shipped .qsb shaders: build them again, as install.sh does.
-    qt=$(pacman -Q qt6-base 2>/dev/null | awk '{print $2}' | grep -oE '^[0-9]+\.[0-9]+')
-    if [ -n "$qt" ] && [ "$(printf '%s\n6.12\n' "$qt" | sort -V | head -n 1)" != 6.12 ] && [ -f "$stage/shaders/compile-shaders.sh" ]; then
+    # Qt older than 6.8 cannot read the shipped .qsb shaders (they are built with
+    # Qt 6.8): build them again, as install.sh does. Tries pacman (Arch), then
+    # dpkg (Debian: the package is libqt6core6t64 on trixie, libqt6core6 on
+    # older Debian/Ubuntu), then qmake6/qtpaths6 as a last resort.
+    qt=$(qt_version)
+    if [ -n "$qt" ] && [ "$(printf '%s\n6.8\n' "$qt" | sort -V | head -n 1)" != 6.8 ] && [ -f "$stage/shaders/compile-shaders.sh" ]; then
         bash "$stage/shaders/compile-shaders.sh" >/dev/null 2>&1 \
             || { rm -rf "$stage"; echo "the shaders didn't build (needs qt6-shadertools)"; return 1; }
     fi
