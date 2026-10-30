@@ -168,7 +168,7 @@ OPTIONAL=( python-aubio songrec mpvpaper nwg-displays hypridle nodejs pnpm cloud
 # Keep this in sync with deb_name() in check-deps.sh (same mapping, duplicated there so that
 # read-only script doesn't need to source this one).
 declare -A DEB=(
-  [hyprland]="bpo:hyprland"                      [quickshell]="bpo:quickshell"
+  [hyprland]="bpo:hyprland hyprland-qtutils"     [quickshell]="bpo:quickshell"
   [qt6-base]="libqt6core6t64 libqt6gui6 libqt6qml6"
   [qt6-declarative]="qml6-module-qtquick qml6-module-qtquick-effects qml6-module-qtquick-shapes qml6-module-qtquick-layouts qml6-module-qtquick-controls qml6-module-qt-labs-folderlistmodel qml6-module-qtqml-models qml6-module-qtqml-workerscript"
   [qt6-multimedia-ffmpeg]="libqt6multimedia6 qml6-module-qtmultimedia"

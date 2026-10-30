@@ -23,7 +23,14 @@ Item {
         border.width: 3
         border.color: mt.pLine
         clip: true
-        transform: Shear { xFactor: -0.25 }
+        // A slanted meter. Shear { xFactor } is Qt 6.9+; Debian 13 has Qt 6.8, so the
+        // same slant is written as the matrix it is (x' = x + y * -0.25).
+        transform: Matrix4x4 {
+            matrix: Qt.matrix4x4(1, -0.25, 0, 0,
+                                 0, 1, 0, 0,
+                                 0, 0, 1, 0,
+                                 0, 0, 0, 1)
+        }
 
         Rectangle {
             x: 3

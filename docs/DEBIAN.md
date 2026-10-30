@@ -104,6 +104,8 @@ in Settings > Desktop. `custom/general.lua` and Settings > Hyprland still overri
 | Cursor fallback | Bibata-Modern-Classic | Adwaita unless Bibata is installed (the shell restores your own cursor right after it starts) |
 | Qt QML path | `/usr/lib/qt6/qml` | `/usr/lib/x86_64-linux-gnu/qt6/qml` (the scripts look in both) |
 | Fonts | `ttf-material-symbols-variable`, `ttf-jetbrains-mono-nerd` | Material Symbols by hand, `fonts-jetbrains-mono` (no Nerd glyphs; only a fish prompt wants them) |
+| `Shear` transform | Qt 6.9+ | not in 6.8 ("Shear is not a type", which stopped the shell); `PluginMeter.qml` uses the same slant as a `Matrix4x4` |
+| hyprland-qtutils | pulled in by hyprland | a separate backports package; without it Hyprland shows a "missing hyprland-qtutils" popup at every start. The installer adds it |
 | QML parser | Qt 6.11+: `short`, `long` and the other old Java reserved words are plain identifiers | Qt 6.8 still rejects them ("Expected token `identifier'"), and one such error stops the whole shell from loading. `TimerService.qml` and `ImageMath.js` were renamed around it; every QML/JS file passes Debian's own `qmllint 6.8.2` with no error. Before adding code, run that linter (package `qt6-declarative-dev-tools`): `qmllint -I /usr/lib/x86_64-linux-gnu/qt6/qml -I . $(find . -name '*.qml' -o -name '*.js')` from the `sekaipop/` folder |
 
 ## Tested here
