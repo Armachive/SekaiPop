@@ -11,7 +11,30 @@
 # /usr/local/share/wayland-sessions/sekaipop.desktop pointing at it (greetd greeters such as
 # dms-greeter and tuigreet, SDDM, GDM, LightDM and ly all list that folder).
 #
-# Run by hand from a TTY it does the same thing:  sekaipop-session
+# Run by hand from a bare TTY it does the same thing:  sekaipop-session
+
+# Never nested. Hyprland started inside another Wayland session (niri, GNOME...) does not get
+# a window on this stack; it falls through to the GPU, hangs, and on the way its config pushes
+# its environment (WAYLAND_DISPLAY, QT_QPA_PLATFORMTHEME, ...) into the systemd user session,
+# which breaks the desktop that is actually running (DMS drew garbage text until the variables
+# were put back). Log out and pick SekaiPop at the login screen instead.
+if [ -n "${WAYLAND_DISPLAY:-}" ] || [ -n "${DISPLAY:-}" ]; then
+    echo "sekaipop-session: a graphical session is already running here (WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} DISPLAY=${DISPLAY:-})." >&2
+    echo "Hyprland can't run nested in it. Log out and choose SekaiPop at the login screen." >&2
+    exit 1
+fi
+
+# A second graphical login as the same user would fight the first over the user bus and the
+# shell's single-instance socket. Say so and stop, instead of leaving a black screen.
+uid=$(id -u)
+if pgrep -u "$uid" -x niri >/dev/null 2>&1; then
+    echo "sekaipop-session: a niri session is already running for $USER. Log out of it first." >&2
+    exit 1
+fi
+if pgrep -u "$uid" -x Hyprland >/dev/null 2>&1; then
+    echo "sekaipop-session: Hyprland is already running for $USER." >&2
+    exit 1
+fi
 
 export XDG_CURRENT_DESKTOP=Hyprland
 export XDG_SESSION_DESKTOP=Hyprland
@@ -22,20 +45,25 @@ export XDG_SESSION_TYPE=wayland
 cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
 [ -e "$cfg/sekaipop/lite" ] && export SEKAIPOP_LITE=1
 
-# A second graphical login as the same user would fight the first over the user bus and the
-# shell's single-instance socket. Say so and stop, instead of leaving a black screen.
-if command -v niri >/dev/null 2>&1 && pgrep -u "$(id -u)" -x niri >/dev/null 2>&1; then
-    echo "sekaipop-session: a niri session is already running for $USER. Log out of it first." >&2
-    exit 1
-fi
-if pgrep -u "$(id -u)" -x Hyprland >/dev/null 2>&1; then
-    echo "sekaipop-session: Hyprland is already running for $USER." >&2
-    exit 1
-fi
-
 # Hyprland 0.55+ ships start-hyprland (restarts the compositor after a crash, keeps the
 # session alive); older packages only have the binary.
 if command -v start-hyprland >/dev/null 2>&1; then
-    exec start-hyprland
+    start-hyprland
+else
+    Hyprland
 fi
-exec Hyprland
+rc=$?
+
+# Hyprland's config exported its environment to the systemd user manager and D-Bus
+# (hyprland/execs.lua: dbus-update-activation-environment), so portals and apps worked. Take
+# it back out now, the way niri-session does for niri: the next login may be another desktop,
+# whose systemd-started services (DMS, portals, keyring) would otherwise inherit a dead
+# WAYLAND_DISPLAY and SekaiPop's Qt platform theme.
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user unset-environment \
+        WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE \
+        HYPRLAND_INSTANCE_SIGNATURE HYPRLAND_CMD XDG_BACKEND \
+        QT_QPA_PLATFORM QT_QPA_PLATFORMTHEME XDG_MENU_PREFIX ELECTRON_OZONE_PLATFORM_HINT \
+        qsConfig SEKAIPOP_LITE 2>/dev/null
+fi
+exit "$rc"

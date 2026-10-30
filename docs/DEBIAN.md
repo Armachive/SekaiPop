@@ -60,6 +60,24 @@ the session with `systemctl --user stop dms-kde-theme.path`.
 
 Remove the entry: `sudo rm /usr/local/bin/sekaipop-session /usr/local/share/wayland-sessions/sekaipop.desktop`.
 
+**Never start `Hyprland` from inside the other desktop** to "have a look". Nested in niri it gets no
+window, falls through to the GPU and hangs, and on the way its config exports its environment
+into the systemd user session (`dbus-update-activation-environment --all` in `hyprland/execs.lua`).
+The running desktop's services then inherit a dead `WAYLAND_DISPLAY` and `QT_QPA_PLATFORMTHEME=qt6ct`:
+DMS drew garbage text and refused to restart until they were put back. `sekaipop-session` now
+refuses to run when `WAYLAND_DISPLAY` is already set, and cleans those variables out of the user
+session when Hyprland exits (as `niri-session` does for niri). If it ever happens anyway:
+
+```bash
+pkill -9 -x Hyprland
+systemctl --user set-environment WAYLAND_DISPLAY=wayland-1 XDG_CURRENT_DESKTOP=niri QT_QPA_PLATFORMTHEME=gtk3
+systemctl --user unset-environment HYPRLAND_INSTANCE_SIGNATURE HYPRLAND_CMD qsConfig
+systemctl --user restart dms
+```
+
+(`wayland-1` is niri's socket; `ls $XDG_RUNTIME_DIR/wayland-*` shows the live one. `gtk3` is what
+this machine's niri session used; `env | grep QT_QPA_PLATFORMTHEME` in a niri terminal shows yours.)
+
 ## Lite profile (`--lite`)
 
 `install.sh --lite` creates `~/.config/sekaipop/lite`. Two things read it:
