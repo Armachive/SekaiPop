@@ -51,7 +51,7 @@ HOW TO CUSTOMIZE  (answer key)
                         (yours to edit, never overwritten; source: ~/SekaiPop/hypr/niri-profile/).
   Layout .............. Scrolling (niri-style) is on. Settings > Hyprland > Layout switches to
                         Dwindle or Master and tunes column widths.
-  Theme / colours ..... Super + Shift + E > THEME tab. "Wallpaper" theme takes colours from the
+  Theme / colours ..... Super + Alt + E > THEME tab. "Wallpaper" theme takes colours from the
                         wallpaper (matugen). Light / Dark / Darker per theme.
   Bar and dock ........ Settings > Bar (modules on/off, position, style). Edit Desktop > BAR / DOCK.
   Widgets ............. Super + Alt + E: left click adds, drag moves, right click removes.
