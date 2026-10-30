@@ -68,14 +68,15 @@ Singleton {
             return (root.swElapsed % 60) / 60
         return 0
     }
-    // Short text for the key: "24m" / "45s".
+    // Short text for the key: "24m" / "45s". (Named shortText, not short: `short` is still a
+    // reserved word for Qt 6.8's QML parser, Debian 13's Qt, and a syntax error there.)
     readonly property string shownText: {
         const s = root.shownMode === "pomodoro" ? root.pomLeft
             : (root.shownMode === "timer" ? root.timerLeft : root.swElapsed)
-        return root.short(s, root.shownMode === "stopwatch")
+        return root.shortText(s, root.shownMode === "stopwatch")
     }
 
-    function short(seconds, up) {
+    function shortText(seconds, up) {
         const s = Math.max(0, up ? Math.floor(seconds) : Math.ceil(seconds))
         if (s >= 3600)
             return Math.floor(s / 3600) + "h"

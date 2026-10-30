@@ -103,18 +103,18 @@ function normalize(raw) {
 function initialSize(nw, nh, roomW, roomH, target) {
     if (!(nw > 0) || !(nh > 0))
         return { w: 240, h: 240 }
-    var short = Math.min(roomW > 0 ? roomW : 1e9, roomH > 0 ? roomH : 1e9)
-    var cap = Math.max(160, Math.min(target || 420, short * 0.4))
-    var long = Math.max(nw, nh)
-    var k = Math.max(160, Math.min(cap, long)) / long
+    var shortSide = Math.min(roomW > 0 ? roomW : 1e9, roomH > 0 ? roomH : 1e9)
+    var cap = Math.max(160, Math.min(target || 420, shortSide * 0.4))
+    var longSide = Math.max(nw, nh)
+    var k = Math.max(160, Math.min(cap, longSide)) / longSide
     return { w: Math.max(MIN_SIDE, Math.round(nw * k)), h: Math.max(MIN_SIDE, Math.round(nh * k)) }
 }
 
 // A new empty frame's record: EMPTY_W x EMPTY_H (less on a small screen), never
 // placed (x / y -1: the middle of the screen, see ImageWidget.place).
 function emptyFrame(id, screen, roomW, roomH) {
-    var short = Math.min(roomW > 0 ? roomW : 1e9, roomH > 0 ? roomH : 1e9)
-    var k = Math.min(1, short * 0.5 / EMPTY_H)
+    var shortSide = Math.min(roomW > 0 ? roomW : 1e9, roomH > 0 ? roomH : 1e9)
+    var k = Math.min(1, shortSide * 0.5 / EMPTY_H)
     return normalize({
         id: id, path: "", screen: screen,
         w: Math.max(MIN_SIDE, Math.round(EMPTY_W * k)), h: Math.max(MIN_SIDE, Math.round(EMPTY_H * k))

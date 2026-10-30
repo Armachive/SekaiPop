@@ -104,6 +104,7 @@ in Settings > Desktop. `custom/general.lua` and Settings > Hyprland still overri
 | Cursor fallback | Bibata-Modern-Classic | Adwaita unless Bibata is installed (the shell restores your own cursor right after it starts) |
 | Qt QML path | `/usr/lib/qt6/qml` | `/usr/lib/x86_64-linux-gnu/qt6/qml` (the scripts look in both) |
 | Fonts | `ttf-material-symbols-variable`, `ttf-jetbrains-mono-nerd` | Material Symbols by hand, `fonts-jetbrains-mono` (no Nerd glyphs; only a fish prompt wants them) |
+| QML parser | Qt 6.11+: `short`, `long` and the other old Java reserved words are plain identifiers | Qt 6.8 still rejects them ("Expected token `identifier'"), and one such error stops the whole shell from loading. `TimerService.qml` and `ImageMath.js` were renamed around it; every QML/JS file passes Debian's own `qmllint 6.8.2` with no error. Before adding code, run that linter (package `qt6-declarative-dev-tools`): `qmllint -I /usr/lib/x86_64-linux-gnu/qt6/qml -I . $(find . -name '*.qml' -o -name '*.js')` from the `sekaipop/` folder |
 
 ## Tested here
 
@@ -111,8 +112,9 @@ Developed and checked on this machine: Debian 13.x, kernel 6.12, Intel Iris Xe, 
 dms-greeter, niri 26.04 + DankMaterialShell as the other desktop, Quickshell 0.3.0 (backports),
 Qt 6.8.2. Checked without root: `install.sh --dry-run`, `install-deps.sh --dry-run`,
 `check-deps.sh`, `luac -p` on every Lua file, `bash -n` / `sh -n` on every shell script, the
-shaders rebuilt with Debian's `qsb 6.8.2` (the exact binary from `qt6-shader-baker`), and the node
-test suite (same results as upstream `main`). **Not yet run on a live Hyprland on Debian** (the
+shaders rebuilt with Debian's `qsb 6.8.2` (the exact binary from `qt6-shader-baker`), every QML and
+JS file through Debian's `qmllint 6.8.2` (no errors), and the node test suite (same results as
+upstream `main`). **Not yet run on a live Hyprland on Debian** (the
 machine this was ported on had no root to install the backports packages during the port): the
 first real login is the remaining test, and `~/.cache/sekaipop/hypr-errors.log` plus
 `qs -c sekaipop log` are where to look if it goes wrong.
