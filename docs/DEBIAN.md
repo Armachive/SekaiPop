@@ -78,6 +78,14 @@ systemctl --user restart dms
 (`wayland-1` is niri's socket; `ls $XDG_RUNTIME_DIR/wayland-*` shows the live one. `gtk3` is what
 this machine's niri session used; `env | grep QT_QPA_PLATFORMTHEME` in a niri terminal shows yours.)
 
+## niri profile (`--niri-profile`)
+
+Coming from niri + DMS? `install.sh --niri-profile` puts [hypr/niri-profile](../hypr/niri-profile/)
+into `~/.config/hypr/custom/`: Hyprland's niri-style **scrolling** layout with niri's column
+widths, niri's input and window rules, and every niri and DMS keybind translated (where a key
+collided with a SekaiPop default, niri's wins and the SekaiPop action moved; the README there
+lists them). This machine runs it.
+
 ## Lite profile (`--lite`)
 
 `install.sh --lite` creates `~/.config/sekaipop/lite`. Two things read it:
