@@ -4,10 +4,11 @@ import Quickshell
 import Quickshell.Io
 import qs.modules.common
 
-// Pending package updates (Arch): a count for the bar's badge
-// (UpdatesBadge.qml), looked up by scripts/system/pkg-updates.sh with `checkupdates`
-// (pacman-contrib; needs no root) and, when you ask for it, the AUR through
-// paru or yay.
+// Pending package updates: a count for the bar's badge (UpdatesBadge.qml),
+// looked up by scripts/system/pkg-updates.sh with `checkupdates` (Arch,
+// pacman-contrib; needs no root) or, if that is missing, `apt-get -s upgrade`
+// (Debian and friends; also needs no root, but only reflects the last `apt
+// update`). On Arch, when you ask for it, the AUR is added through paru or yay.
 //
 //   repoCount, aurCount, total   what is waiting
 //   packages                     ["name 1.0 -> 1.1", ...] (the first few, repo then AUR)
@@ -69,7 +70,7 @@ Singleton {
     // "3 repo · 1 AUR" for the tag and the Settings page.
     readonly property string breakdown: {
         if (root.status === "nocmd")
-            return "checkupdates not found (install pacman-contrib)"
+            return "no package tool found (pacman-contrib on Arch, apt on Debian)"
         if (root.status === "error")
             return "couldn't check for updates"
         if (root.status === "idle" || (root.status === "checking" && root.checkedAt === 0))
@@ -158,7 +159,9 @@ Singleton {
         "checkupdates 2>/dev/null; echo; "
         + "if command -v paru >/dev/null 2>&1; then paru; "
         + "elif command -v yay >/dev/null 2>&1; then yay; "
-        + "else sudo pacman -Syu; fi; "
+        + "elif command -v apt-get >/dev/null 2>&1; then sudo apt update && sudo apt full-upgrade; "
+        + "elif command -v pacman >/dev/null 2>&1; then sudo pacman -Syu; "
+        + "else echo 'no package tool found (pacman-contrib on Arch, apt on Debian)'; fi; "
         + "echo; printf 'Press Enter to close '; read _"
 
     function terminalCommand() {

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=SekaiPop
+Comment=Hyprland with the SekaiPop shell (bar, dock, phone, lockscreen)
+Exec=/usr/local/bin/sekaipop-session
+TryExec=/usr/local/bin/sekaipop-session
+Type=Application
+DesktopNames=Hyprland
+Keywords=hyprland;wayland;sekaipop;

@@ -18,16 +18,20 @@
 #                       merge  = keep YOUR config, only add a small sekaipop_session file to it
 #                       skip   = do not touch Hyprland at all
 #   --no-deps           do not install packages / services (only copy files)
+#   --no-session        do not add the "SekaiPop" entry to the login screen
+#   --lite              Lite profile: compositor blur / shadows / dimming off and the shell's Low-end
+#                       mode on (integrated GPUs, laptops). Undo: rm ~/.config/sekaipop/lite
 #   --with-tests        also copy the developer tests folder
 #   --restore           put back the Hyprland config that was backed up by the last run
 #   -h, --help
 #
-# Run as your normal user (it uses sudo where needed). Needs Arch / CachyOS / EndeavourOS for the packages.
+# Run as your normal user (it uses sudo where needed). Packages come from pacman (Arch / CachyOS /
+# EndeavourOS) or apt (Debian 13 "trixie", with trixie-backports for Hyprland and Quickshell).
 
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-REPLACED=0; DRY=0; YES=0; RICE=""; HYPR=auto; NODEPS=0; WITH_TESTS=0; RESTORE=0; DEPS_ARGS=()
+REPLACED=0; DRY=0; YES=0; RICE=""; HYPR=auto; NODEPS=0; WITH_TESTS=0; RESTORE=0; SESSION=1; LITE=0; DEPS_ARGS=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY=1 ;;
@@ -35,9 +39,11 @@ while [ $# -gt 0 ]; do
         --rice) shift; RICE=${1:-} ;;
         --hypr) shift; HYPR=${1:-}; case "$HYPR" in full|merge|skip) ;; *) echo "--hypr needs full|merge|skip" >&2; exit 2 ;; esac ;;
         --no-deps) NODEPS=1 ;;
+        --no-session) SESSION=0 ;;
+        --lite) LITE=1 ;;
         --with-tests) WITH_TESTS=1 ;;
         --restore) RESTORE=1 ;;
-        -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
         --) shift; DEPS_ARGS=("$@"); break ;;
         *) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
     esac
@@ -83,6 +89,28 @@ result() { # result ok|bad <text>
 }
 nx() { printf '  %s%s%s %s\n' "$PK" "$G_ARR" "$Z" "$1"; }
 have() { command -v "$1" >/dev/null 2>&1; }
+# Which package manager this machine has: pacman (Arch and friends) or apt (Debian 13). install-deps.sh
+# does the real work; the few package checks in this file go through these.
+PM=""; have pacman && PM=pacman; [ -z "$PM" ] && have apt-get && PM=apt
+pkg_installed() { # pkg_installed <name>: is it installed, whatever the package manager
+    case "$PM" in
+        pacman) pacman -T "$1" >/dev/null 2>&1 ;;
+        apt) [ "$(dpkg-query -W -f='${db:Status-Status}' "$1" 2>/dev/null)" = installed ] ;;
+        *) return 1 ;;
+    esac
+}
+# The Qt version (major.minor), from whichever source this system has. qmake6 is not installed by
+# default on Debian (it is in qt6-base-dev-tools), so the package database is asked first.
+qt_version() {
+    local v=""
+    if have pacman; then v=$(pacman -Q qt6-base 2>/dev/null | awk '{print $2}'); fi
+    if [ -z "$v" ] && have dpkg-query; then
+        for p in libqt6core6t64 libqt6core6; do v=$(dpkg-query -W -f='${Version}' "$p" 2>/dev/null) && [ -n "$v" ] && break; done
+    fi
+    [ -z "$v" ] && have qmake6 && v=$(qmake6 -query QT_VERSION 2>/dev/null)
+    [ -z "$v" ] && have qtpaths6 && v=$(qtpaths6 --qt-version 2>/dev/null)
+    printf '%s' "$v" | grep -oE '[0-9]+\.[0-9]+' | head -n 1
+}
 run() {
     if [ "$DRY" = 1 ]; then printf '  %s%s%s %swould run%s' "$PK" "$G_ARR" "$Z" "$D" "$Z"; printf ' %q' "$@"; printf '\n'; return 0; fi
     "$@"
@@ -181,14 +209,23 @@ if [ "$NODEPS" = 0 ]; then
     [ "$HYPR" != merge ] && FLAGS+=(--no-session)    # full/skip handle the session themselves
     SEKAIPOP_FULL_INSTALL=1 bash "$HERE/install-deps.sh" "${FLAGS[@]}" "${DEPS_ARGS[@]}" || fail "install-deps.sh reported problems (see above)"
 
-    if [ "$HYPR" = full ] && have pacman; then
+    if [ "$HYPR" = full ] && [ -n "$PM" ]; then
         # used by the keybinds / autostart of the preconfigured config
         EXTRA=()
-        for p in playerctl hypridle; do pacman -T "$p" >/dev/null 2>&1 || EXTRA+=("$p"); done
+        for p in playerctl hypridle; do pkg_installed "$p" || EXTRA+=("$p"); done
         if [ "${#EXTRA[@]}" -gt 0 ]; then
             info "for the keybinds and idle lock: ${EXTRA[*]}"
-            PF=(--needed); [ "$YES" = 1 ] && PF+=(--noconfirm)
-            run sudo pacman -S "${PF[@]}" "${EXTRA[@]}" || fail "could not install ${EXTRA[*]}"
+            if [ "$PM" = pacman ]; then
+                PF=(--needed); [ "$YES" = 1 ] && PF+=(--noconfirm)
+                run sudo pacman -S "${PF[@]}" "${EXTRA[@]}" || fail "could not install ${EXTRA[*]}"
+            else
+                # On Debian 13 hypridle lives in trixie-backports (like Hyprland itself); playerctl in main.
+                AF=(); [ "$YES" = 1 ] && AF+=(-y)
+                for p in "${EXTRA[@]}"; do
+                    case "$p" in hypridle) run sudo apt install "${AF[@]}" -t trixie-backports "$p" ;; *) run sudo apt install "${AF[@]}" "$p" ;; esac \
+                        || fail "could not install $p"
+                done
+            fi
         fi
     fi
 else
@@ -224,15 +261,18 @@ if [ "$DRY" != 1 ] && [ -d "$HERE/.git" ] && have git && [ -d "$QS_DEST" ] && [ 
     } > "$QS_DEST/.source" 2>/dev/null || true
 fi
 
-# shaders: .qsb files are built with Qt 6.12 and older Qt cannot read them
-QTV=$(pacman -Q qt6-base 2>/dev/null | awk '{print $2}' | grep -oE '^[0-9]+\.[0-9]+')
-if [ -n "$QTV" ] && ! ver_ge "$QTV" 6.12; then
-    info "Qt $QTV is older than 6.12: rebuilding the shaders once"
+# shaders: the .qsb files are built with Qt 6.8's qsb (Debian 13's Qt), which every newer Qt reads
+# too. Only an older Qt needs them rebuilt (qsb from qt6-shadertools on Arch, qt6-shader-baker on Debian).
+QTV=$(qt_version)
+if [ -n "$QTV" ] && ! ver_ge "$QTV" 6.8; then
+    info "Qt $QTV is older than 6.8: rebuilding the shaders once"
     if [ -f "$QS_DEST/shaders/compile-shaders.sh" ]; then
-        run bash "$QS_DEST/shaders/compile-shaders.sh" || fail "shader build failed (needs qt6-shadertools)"
+        run bash "$QS_DEST/shaders/compile-shaders.sh" || fail "shader build failed (needs qsb: qt6-shadertools on Arch, qt6-shader-baker on Debian)"
     fi
 elif [ -n "$QTV" ]; then
     ok "Qt $QTV: the shipped shaders work as they are"
+else
+    info "Qt version unknown: the shipped shaders (built for Qt 6.8 and newer) are used as they are"
 fi
 
 # monitors.lua is made for THIS machine, never shipped: a file written for someone else's screens
@@ -348,11 +388,73 @@ case "$HYPR" in
     ;;
 esac
 
-# login session
-if [ -f /usr/share/wayland-sessions/hyprland.desktop ]; then
-    ok "login session 'Hyprland' is installed (pick it, not the 'uwsm' one, in your login screen)"
+# ------------------------------------------------------------------ 4. login screen
+# A "SekaiPop" entry beside the other sessions (Niri, GNOME...), so this desktop and another one
+# can live on the same machine and you choose at the greeter. session/README.md has the details.
+step "4. Login screen"
+SESSION_SRC="$HERE/session"
+SESSION_BIN=/usr/local/bin/sekaipop-session
+SESSION_DESKTOP=/usr/local/share/wayland-sessions/sekaipop.desktop
+if [ "$SESSION" = 0 ]; then
+    info "no login entry added (--no-session)"
+elif [ "$HYPR" = skip ]; then
+    info "no login entry added (--hypr skip: the shell would not start with the session)"
+elif [ ! -f "$SESSION_SRC/sekaipop-session" ] || [ ! -f "$SESSION_SRC/sekaipop.desktop" ]; then
+    warn "session files missing ($SESSION_SRC): no login entry added"
+elif cmp -s "$SESSION_SRC/sekaipop-session" "$SESSION_BIN" 2>/dev/null && cmp -s "$SESSION_SRC/sekaipop.desktop" "$SESSION_DESKTOP" 2>/dev/null; then
+    ok "login entry 'SekaiPop' is already installed ($SESSION_DESKTOP)"
+elif ask "Add a 'SekaiPop' entry to the login screen (writes $SESSION_BIN and $SESSION_DESKTOP, with sudo)?"; then
+    if run sudo install -Dm755 "$SESSION_SRC/sekaipop-session" "$SESSION_BIN" \
+        && run sudo install -Dm644 "$SESSION_SRC/sekaipop.desktop" "$SESSION_DESKTOP"; then
+        [ "$DRY" = 1 ] || ok "login entry 'SekaiPop' installed (your other sessions are untouched)"
+    else
+        fail "could not install the login entry (see session/README.md to do it by hand)"
+    fi
 else
-    warn "no Hyprland session file found in /usr/share/wayland-sessions: is the hyprland package installed?"
+    info "skipped. The plain 'Hyprland' entry runs the same config; see session/README.md"
+fi
+if [ -f /usr/share/wayland-sessions/hyprland.desktop ]; then
+    info "the hyprland package's own 'Hyprland' entry works too (not the 'uwsm' one)"
+else
+    warn "no /usr/share/wayland-sessions/hyprland.desktop: is the hyprland package installed?"
+fi
+
+# ------------------------------------------------------------------ 5. Lite profile
+# One file, read by two places: hypr/hyprland.lua loads hyprland/performance.lua (blur, shadows and
+# dimming off) while it exists, and the shell's own Low-end mode (perf.lowEnd) is switched on in
+# settings.json. Nothing else; `rm ~/.config/sekaipop/lite` and reload to go back (and switch
+# Low-end mode off again in Settings > Desktop).
+LITE_FILE="$CFG/sekaipop/lite"
+if [ "$LITE" = 1 ]; then
+    step "5. Lite profile"
+    if [ "$DRY" = 1 ]; then
+        info "would create $LITE_FILE and set perf.lowEnd=true in $CFG/sekaipop/settings.json"
+    else
+        mkdir -p "$CFG/sekaipop"
+        printf 'Made by install.sh --lite. While this file exists, Hyprland loads hyprland/performance.lua. Delete it to go back.\n' > "$LITE_FILE"
+        SJ="$CFG/sekaipop/settings.json"
+        if have python3; then
+            python3 - "$SJ" <<'PY' || warn "could not update $SJ (set Low-end mode in Settings > Desktop instead)"
+import json, sys, os
+p = sys.argv[1]
+d = {}
+if os.path.exists(p):
+    try:
+        with open(p) as f: d = json.load(f)
+    except Exception: d = {}
+if not isinstance(d, dict): d = {}
+d["perf.lowEnd"] = True
+with open(p, "w") as f: json.dump(d, f, indent=2); f.write("\n")
+PY
+        elif [ ! -s "$SJ" ]; then
+            printf '{\n  "perf.lowEnd": true\n}\n' > "$SJ"
+        else
+            warn "python3 not found and $SJ exists: switch Low-end mode on in Settings > Desktop"
+        fi
+        ok "Lite profile on ($LITE_FILE)"
+    fi
+elif [ -e "$LITE_FILE" ]; then
+    info "Lite profile is on ($LITE_FILE exists); rm it to go back to the full effects"
 fi
 
 # ------------------------------------------------------------------ done
@@ -392,7 +494,7 @@ else
     result bad "Finished with ${#FAILED[@]} problem(s), see above"
 fi
 printf '\n  %sNext%s\n' "$B" "$Z"
-nx "If you did not reload above: log out and back in (pick the plain Hyprland session)."
+nx "If you did not reload above: log out and back in and pick ${B}SekaiPop${Z} (or plain Hyprland, not uwsm)."
 printf '      %sThe shell starts by itself. By hand:%s  %sqs -c sekaipop%s\n' "$D" "$Z" "$B" "$Z"
 nx "Keybinds: ${B}Super + /${Z} opens the cheat sheet.  ${B}Super${Z} (tap) = apps.  ${B}Super + I${Z} = settings."
 nx "Config mistakes are written to ${B}~/.cache/sekaipop/hypr-errors.log${Z} (the rest still loads)."

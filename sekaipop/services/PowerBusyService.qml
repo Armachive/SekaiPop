@@ -15,8 +15,9 @@ import Quickshell.Io
 // weather and image-search calls use it), and torrent clients / sync daemons
 // (they run all day, so they would warn all day).
 //
-// A `checkupdates` run (the bar's update badge) uses pacman for a moment and will
-// show as "pacman" while it does.
+// A bar update-badge look (scripts/system/pkg-updates.sh) uses pacman for a
+// moment on Arch (`checkupdates`) or apt-get for a moment on Debian
+// (`apt-get -s upgrade`), and will show up here while it does.
 Singleton {
     id: root
 

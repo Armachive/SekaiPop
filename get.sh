@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # get.sh: the one-command installer for SekaiPop.
 #
-#   bash <(curl -fsSL https://raw.githubusercontent.com/Blapples/SekaiPop/main/get.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/Armachive/SekaiPop/debian/get.sh)
 #
 # It downloads SekaiPop into a temporary folder, runs install.sh from there (so nobody
 # has to clone, chmod or cd), and cleans up afterwards. Everything after the script is
 # passed on to install.sh, for example:
 #
-#   bash <(curl -fsSL https://raw.githubusercontent.com/Blapples/SekaiPop/main/get.sh) --dry-run
-#   bash <(curl -fsSL https://raw.githubusercontent.com/Blapples/SekaiPop/main/get.sh) --yes --hypr merge
+#   bash <(curl -fsSL https://raw.githubusercontent.com/Armachive/SekaiPop/debian/get.sh) --dry-run
+#   bash <(curl -fsSL https://raw.githubusercontent.com/Armachive/SekaiPop/debian/get.sh) --yes --hypr merge
 #
 # The "curl ... | bash -s -- --dry-run" form works too.
 #
 # Environment (all optional):
-#   SEKAIPOP_REF=<branch|tag>   what to install (default: main)
+#   SEKAIPOP_REF=<branch|tag>   what to install (default: debian)
 #   SEKAIPOP_DIR=<folder>       keep the download there instead of a temporary folder
 #                               (it is updated on the next run; do not keep your own edits in it)
 #   SEKAIPOP_REPO=<git url>     install from a fork
@@ -22,8 +22,8 @@
 
 set -euo pipefail
 
-REPO=${SEKAIPOP_REPO:-https://github.com/Blapples/SekaiPop.git}
-REF=${SEKAIPOP_REF:-main}
+REPO=${SEKAIPOP_REPO:-https://github.com/Armachive/SekaiPop.git}
+REF=${SEKAIPOP_REF:-debian}
 KEEP=${SEKAIPOP_DIR:-}
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then B=$'\e[1m'; D=$'\e[2m'; C=$'\e[38;5;80m'; R=$'\e[38;5;203m'; Z=$'\e[0m'; else B=; D=; C=; R=; Z=; fi
@@ -60,7 +60,7 @@ elif have curl && have tar; then
     TAR="${REPO%.git}/archive/${REF}.tar.gz"
     curl -fsSL "$TAR" | tar -xz --strip-components=1 -C "$DIR"
 else
-    die "Need git, or curl and tar. On Arch:  sudo pacman -S git"
+    die "Need git, or curl and tar. On Arch:  sudo pacman -S git   On Debian:  sudo apt install git"
 fi
 [ -f "$DIR/install.sh" ] || die "The download has no install.sh: wrong SEKAIPOP_REF or SEKAIPOP_REPO?"
 chmod +x "$DIR/install.sh" "$DIR/install-deps.sh" "$DIR/check-deps.sh" 2>/dev/null || true

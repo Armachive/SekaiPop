@@ -1,0 +1,41 @@
+#!/bin/sh
+# sekaipop-session: what the "SekaiPop" entry on the login screen runs.
+#
+# It starts Hyprland, which reads ~/.config/hypr/hyprland.lua (the config install.sh puts
+# there) and starts the shell from it. The point of a separate entry is to sit BESIDE another
+# desktop on the same machine (niri + DankMaterialShell, GNOME, Plasma...): pick "SekaiPop" at
+# the greeter for this one, pick the other entry for the other. Nothing here reads or writes
+# the other sessions' files, and nothing in SekaiPop's Hyprland config starts the other shells.
+#
+# Installed by install.sh as /usr/local/bin/sekaipop-session, with
+# /usr/local/share/wayland-sessions/sekaipop.desktop pointing at it (greetd greeters such as
+# dms-greeter and tuigreet, SDDM, GDM, LightDM and ly all list that folder).
+#
+# Run by hand from a TTY it does the same thing:  sekaipop-session
+
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+export XDG_SESSION_TYPE=wayland
+
+# Lite profile (install.sh --lite, or `touch ~/.config/sekaipop/lite` yourself): the Hyprland
+# side reads the same file (hyprland/performance.lua); scripts can look at SEKAIPOP_LITE.
+cfg="${XDG_CONFIG_HOME:-$HOME/.config}"
+[ -e "$cfg/sekaipop/lite" ] && export SEKAIPOP_LITE=1
+
+# A second graphical login as the same user would fight the first over the user bus and the
+# shell's single-instance socket. Say so and stop, instead of leaving a black screen.
+if command -v niri >/dev/null 2>&1 && pgrep -u "$(id -u)" -x niri >/dev/null 2>&1; then
+    echo "sekaipop-session: a niri session is already running for $USER. Log out of it first." >&2
+    exit 1
+fi
+if pgrep -u "$(id -u)" -x Hyprland >/dev/null 2>&1; then
+    echo "sekaipop-session: Hyprland is already running for $USER." >&2
+    exit 1
+fi
+
+# Hyprland 0.55+ ships start-hyprland (restarts the compositor after a crash, keeps the
+# session alive); older packages only have the binary.
+if command -v start-hyprland >/dev/null 2>&1; then
+    exec start-hyprland
+fi
+exec Hyprland

@@ -34,5 +34,14 @@ taskManager = launch .. " 'gnome-system-monitor' 'plasma-systemmonitor --page-na
 
 -- Cursor used until the shell restores the one you picked in Settings (it does that a moment
 -- after it starts). Only a fallback for a fresh install.
+-- Bibata is what Arch users tend to have; Debian ships no package for it, so a machine without
+-- it gets Adwaita (always there) instead of an invisible pointer until the shell restores yours.
 cursorTheme = "Bibata-Modern-Classic"
 cursorSize = 24
+local function cursor_installed(name)
+    for _, d in ipairs({ HOME .. "/.icons/", HOME .. "/.local/share/icons/", "/usr/share/icons/", "/usr/local/share/icons/" }) do
+        if is_file_exists(d .. name .. "/cursors/left_ptr") or is_file_exists(d .. name .. "/index.theme") then return true end
+    end
+    return false
+end
+if not cursor_installed(cursorTheme) then cursorTheme = "Adwaita" end
