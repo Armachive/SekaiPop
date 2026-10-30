@@ -17,10 +17,5 @@ hl.config({
         blur = { enabled = false },
         shadow = { enabled = false },
         dim_inactive = false
-    },
-    misc = {
-        -- Draw only when something changed (Hyprland's default, repeated here so a config that
-        -- switched it off is caught).
-        vfr = true
     }
 })

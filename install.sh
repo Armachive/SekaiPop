@@ -362,6 +362,10 @@ case "$HYPR" in
                     rm -f "$NEW/monitors.lua"; warn "could not make monitors.lua: Hyprland will use its defaults"
                 fi
             fi
+            # An empty workspaces.lua: hyprland.lua loads it as optional, but `Hyprland --verify-config`
+            # still prints the missing module and exits 1, which hides real mistakes. The shell's
+            # Settings > Hyprland > Displays (or nwg-displays) fills it in later.
+            [ -f "$NEW/workspaces.lua" ] || printf -- '-- Workspace rules. Written by the shell'"'"'s Settings > Hyprland > Displays or nwg-displays; empty until then.\n' > "$NEW/workspaces.lua"
             find "$NEW" -name '*.sh' -exec chmod +x {} +
             if [ -e "$HYPR_DEST" ]; then
                 [ "$OURS" = 1 ] && rm -rf "$BACKUP_TO"      # only one rolling copy of a previous sekaipop config
