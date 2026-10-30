@@ -68,3 +68,5 @@ IF SOMETHING BREAKS
   Stuck / black screen ..... Ctrl + Alt + F3, log in, run:  pkill Hyprland   (back to the greeter)
   Back to Niri + DMS ....... Log out, pick "Niri" at the login screen. Nothing to switch off.
   Update the shell ......... Settings > About / Update, or:  cd ~/SekaiPop && git pull && ./install.sh
+  "[hyprpm] Failed to load plugins" at login ... Overview style is "Scroll"; set it back to Board:
+                             qs -c sekaipop ipc call options set overview.style board
