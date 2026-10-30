@@ -224,6 +224,7 @@ const map = {
     download: "download-minimalistic",
     downloading: "download",
     system_update_alt: "download-square",
+    system_update: "download-square",
     save: "diskette",
     push_pin: "pin",
     keep: "pin",
