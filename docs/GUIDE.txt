@@ -1,0 +1,70 @@
+SEKAIPOP QUICK GUIDE  (Debian 13 port, github.com/Armachive/SekaiPop)
+=====================================================================
+Super = the Windows key.  Press Super + /  any time for the full list on screen.
+
+THE BASICS
+  Super (tap) or Super + A    Apps launcher (the phone)
+  Super + N                   Quick Panel: Wi-Fi, Bluetooth, sound, brightness, notifications
+  Super + I                   Settings (the phone turned sideways)
+  Super + Tab                 Overview of windows and workspaces
+  Super + Escape              Power menu (sleep, reboot, shut down, log out)
+  Super + L                   Lock screen
+  Super + Return              Terminal (kitty)
+  Super + E / W / C / X       File manager / Browser / Code editor / Text editor
+  Ctrl + Shift + Escape       Task manager
+  Ctrl + Super + R            Restart the shell (if the bar ever vanishes)
+
+WINDOWS AND WORKSPACES
+  Super + Q                   Close window
+  Super + 1 .. 0              Go to workspace 1..10      (Super + Alt + 1..0: move window there)
+  Ctrl + Super + Left/Right   Previous / next workspace
+  Super + Arrows              Move focus                 (+ Shift: move window)
+  Super + Alt + Space         Float / tile the window
+  Super + P                   Pin window on top
+  Ctrl + Super + S            Scratchpad workspace       (Super + Alt + S: send window there)
+  Super + left drag           Move window        Super + right drag    Resize window
+  Super + F  /  Super + D     Fullscreen  /  Maximize
+
+LOOK
+  Ctrl + Super + T            Wallpaper picker          Ctrl + Super + Alt + T   Random wallpaper
+  Ctrl + Super + Shift + T    Theme picker              Ctrl + Super + Shift + D Dark mode on/off
+  Super + Shift + E           Edit Desktop: add, move, resize, remove widgets, bar, dock
+
+TOOLS
+  Super + Shift + S           Screenshot a region       Super + Shift + R   Record a region
+  Super + Shift + X           OCR a region to clipboard Super + Shift + A   Google Lens
+  Super + V  /  Super + .     Clipboard history  /  Emoji picker
+  Super + M                   Equalizer (Sekai Pad)     Super + G           Game mode
+  Super + K                   On-screen keyboard        Super + Shift + F   Focus mode
+  Volume / brightness keys    Work as usual, with an on-screen display
+
+HOW TO CUSTOMIZE  (answer key)
+  Keybinds ............ Settings > Hyprland > Keybinds (click an action, press new keys).
+                        Or add your own in ~/.config/hypr/custom/keybinds.lua (never overwritten).
+  Theme / colours ..... Super + Shift + E > THEME tab. "Wallpaper" theme takes colours from the
+                        wallpaper (matugen). Light / Dark / Darker per theme.
+  Bar and dock ........ Settings > Bar (modules on/off, position, style). Edit Desktop > BAR / DOCK.
+  Widgets ............. Super + Shift + E: left click adds, drag moves, right click removes.
+  Wallpapers .......... Ctrl + Super + T. Folder: Settings > General. Also Wallhaven search inside.
+  Monitors ............ Settings > Hyprland > Displays (drag screens, pick resolution and scale).
+  Idle / sleep ........ Settings > General > Idle & sleep (lock 5 min, screen off 10, sleep 15).
+  Startup apps ........ ~/.config/hypr/custom/execs.lua   (hl.exec_cmd("yourapp"))
+  Window rules ........ ~/.config/hypr/custom/rules.lua
+  Hyprland options .... Settings > Hyprland, or ~/.config/hypr/custom/general.lua
+  Save a look ......... Edit Desktop > PRESETS (and Undo if you regret it).
+  Lite / full effects . Lite is on (rm ~/.config/sekaipop/lite to get blur and shadows back,
+                        then Settings > Desktop > Low-end mode off).
+
+WHERE THINGS LIVE
+  Shell ............... ~/.config/quickshell/sekaipop     (updated by Settings > About / Update)
+  Hyprland config ..... ~/.config/hypr   (your edits go in custom/; defaults in hyprland/)
+  Your settings ....... ~/.config/sekaipop/settings.json  (written by Settings; don't hand-edit)
+  Logs ................ qs -c sekaipop log         ~/.cache/sekaipop/hypr-errors.log
+  Source / docs ....... ~/SekaiPop   (docs/DEBIAN.md for what is Debian-specific)
+
+IF SOMETHING BREAKS
+  No bar ................... Ctrl + Super + R, else in a terminal:  qs -c sekaipop log
+  No sound ................. systemctl --user restart wireplumber   (the session does this itself)
+  Stuck / black screen ..... Ctrl + Alt + F3, log in, run:  pkill Hyprland   (back to the greeter)
+  Back to Niri + DMS ....... Log out, pick "Niri" at the login screen. Nothing to switch off.
+  Update the shell ......... Settings > About / Update, or:  cd ~/SekaiPop && git pull && ./install.sh

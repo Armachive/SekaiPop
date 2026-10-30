@@ -392,6 +392,9 @@ case "$HYPR" in
     ;;
 esac
 
+# A one-page guide (keybinds, how to customize, where things live) next to the home folder.
+[ -f "$HERE/docs/GUIDE.txt" ] && { run cp "$HERE/docs/GUIDE.txt" "$HOME/SekaiPop-Guide.txt"; [ "$DRY" = 1 ] || ok "guide: ~/SekaiPop-Guide.txt"; }
+
 # ------------------------------------------------------------------ 4. login screen
 # A "SekaiPop" entry beside the other sessions (Niri, GNOME...), so this desktop and another one
 # can live on the same machine and you choose at the greeter. session/README.md has the details.

@@ -22,6 +22,10 @@ hl.on("hyprland.start", function()
     -- Idle: dim/lock/sleep (the lock itself is the shell's: see hypridle.conf)
     hl.exec_cmd("hypridle")
 
+    -- Sound card left on profile "Off" by a WirePlumber that started before the DSP firmware
+    -- (no speakers, "Dummy Output"): re-probe it once. Does nothing when the output is there.
+    hl.exec_cmd("sh ~/.config/quickshell/" .. qsConfig .. "/scripts/system/audio-wake.sh")
+
     -- Audio effects service: the shell's Equalizer loads presets into it (`easyeffects -l`)
     hl.exec_cmd("easyeffects --hide-window --service-mode")
 end)

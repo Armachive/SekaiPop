@@ -280,7 +280,7 @@ Made one? Give its repository the GitHub topic [`sekaipop-plugin`](https://githu
 
 <h2 id="keybinds"><img src="assets/tag-keybinds.svg" alt="Keybinds" height="80"></h2>
 
-Press <kbd>Super</kbd> + <kbd>/</kbd> any time for the full list, grouped.
+Press <kbd>Super</kbd> + <kbd>/</kbd> any time for the full list, grouped. A one-page plain-text version with a customization answer key: [docs/GUIDE.txt](docs/GUIDE.txt) (the installer also drops a copy at `~/SekaiPop-Guide.txt`).
 
 To change one, open **Settings > Hyprland > Keybinds** (or `qs -c sekaipop ipc call keybinds toggle`): a keyboard slab shows what is on every key. Pick an action, press **Press keys**, then press the new keys (or switch the modifiers on and click a key on the board). It works straight away, and **Reset** puts it back.
 
